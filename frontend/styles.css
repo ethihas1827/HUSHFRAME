@@ -544,65 +544,200 @@ button, input, textarea, select {
 
 .home-container {
   text-align: center;
-  padding: 3.5rem 0 2rem 0;
+  padding: 2.5rem 0 2rem 0;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 12px;
-  font-weight: 600;
-  color: #4338ca;
-  padding: 0.38rem 0.95rem;
-  background: linear-gradient(135deg, #eef2ff 0%, #f0fdf4 100%);
-  border: 1px solid #c7d2fe;
-  border-radius: var(--radius-pill);
-  margin-bottom: 1.5rem;
-  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.08);
-}
-
-.badge-dot {
-  width: 6.5px;
-  height: 6.5px;
-  border-radius: 50%;
-  background-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
-}
-
-.home-title {
-  font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  color: var(--text-main);
-  margin-bottom: 0.75rem;
-  line-height: 1.25;
-}
-
-.home-subtitle {
-  font-size: 15px;
-  color: var(--text-muted);
-  margin-bottom: 2.25rem;
-  max-width: 500px;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.6;
-}
-
-.home-actions {
+.home-brand-hero {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.85rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0.45rem;
 }
 
-.home-privacy-note {
-  font-size: var(--text-sm);
+.hero-brand-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+  flex-shrink: 0;
+}
+
+.hero-app-name {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: var(--text-main);
+  line-height: 1.1;
+  margin: 0;
+}
+
+.hero-tagline {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 0.3rem 0;
+}
+
+.hero-subtitle {
+  font-size: 13.5px;
   color: var(--text-subtle);
-  max-width: 440px;
-  margin: 0 auto 3rem auto;
-  line-height: 1.55;
+  margin: 0 0 2rem 0;
+}
+
+/* Prominently Highlighted Primary Action Cards */
+.home-main-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.15rem;
+  margin-bottom: 2rem;
+  text-align: left;
+}
+
+.hero-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.35rem;
+  border-radius: var(--radius-lg);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  text-decoration: none;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-action-protect {
+  background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%);
+  color: #ffffff;
+  box-shadow: 0 6px 20px -2px rgba(79, 70, 229, 0.42), 0 2px 6px -1px rgba(79, 70, 229, 0.2);
+  border-color: #4338ca;
+}
+
+.hero-action-protect:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px -2px rgba(79, 70, 229, 0.52);
+  background: linear-gradient(135deg, #4338ca 0%, #312e81 100%);
+}
+
+.hero-action-protect .hero-btn-icon-wrap {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.hero-action-protect .hero-btn-title {
+  color: #ffffff;
+}
+
+.hero-action-protect .hero-btn-desc {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.hero-action-protect .hero-btn-arrow {
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.hero-action-recover {
+  background-color: var(--bg-surface);
+  color: var(--text-main);
+  border: 1.5px solid var(--border-medium);
+  box-shadow: 0 4px 14px -2px rgba(15, 23, 42, 0.06);
+}
+
+.hero-action-recover:hover {
+  transform: translateY(-2px);
+  border-color: #818cf8;
+  background-color: #f8faff;
+  box-shadow: 0 8px 24px -2px rgba(99, 102, 241, 0.16);
+}
+
+[data-theme="dark"] .hero-action-recover {
+  background-color: #111827;
+  border-color: #27354a;
+  box-shadow: 0 4px 14px -2px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .hero-action-recover:hover {
+  background-color: #1a2336;
+  border-color: #6366f1;
+  box-shadow: 0 8px 24px -2px rgba(99, 102, 241, 0.25);
+}
+
+.hero-action-recover .hero-btn-icon-wrap {
+  background: #eef2ff;
+  color: #4f46e5;
+  border: 1px solid #c7d2fe;
+}
+
+[data-theme="dark"] .hero-action-recover .hero-btn-icon-wrap {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+.hero-action-recover .hero-btn-title {
+  color: var(--text-main);
+}
+
+.hero-action-recover .hero-btn-desc {
+  color: var(--text-muted);
+}
+
+.hero-action-recover .hero-btn-arrow {
+  color: var(--text-subtle);
+}
+
+.hero-btn-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.hero-action-btn:hover .hero-btn-icon-wrap {
+  transform: scale(1.08);
+}
+
+.hero-btn-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.hero-btn-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.hero-btn-desc {
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+
+.hero-btn-arrow {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.hero-action-btn:hover .hero-btn-arrow {
+  transform: translateX(3px);
 }
 
 /* ==========================================================================
@@ -812,97 +947,31 @@ button, input, textarea, select {
 }
 
 /* ==========================================================================
-   Studio Cryptographic Pillars Grid
+   Home Technical Specifications Bar (Subtle, Non-Highlighted)
    ========================================================================== */
 
-.studio-pillars-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.85rem;
-  margin-top: 1.5rem;
-  text-align: left;
-}
-
-.pillar-card {
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-medium);
-  border-radius: var(--radius-md);
-  padding: 1.15rem;
-  box-shadow: var(--shadow-subtle);
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.pillar-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--border-focus);
-}
-
-.pillar-icon-box {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
+.home-specs-bar {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.75rem;
+  gap: 0.75rem;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 1.75rem;
+  padding: 0.5rem 1rem;
+  flex-wrap: wrap;
 }
 
-.pillar-argon {
-  background-color: #eef2ff;
-  color: #4f46e5;
-  border: 1px solid #c7d2fe;
+.spec-pill {
+  color: var(--text-subtle);
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
-.pillar-aes {
-  background-color: #ecfdf5;
-  color: #059669;
-  border: 1px solid #a7f3d0;
-}
-
-.pillar-fec {
-  background-color: #fffbeb;
-  color: #d97706;
-  border: 1px solid #fde68a;
-}
-
-.pillar-offline {
-  background-color: #f0f9ff;
-  color: #0284c7;
-  border: 1px solid #bae6fd;
-}
-
-[data-theme="dark"] .pillar-argon {
-  background-color: rgba(99, 102, 241, 0.15);
-  border-color: rgba(99, 102, 241, 0.3);
-  color: #a5b4fc;
-}
-[data-theme="dark"] .pillar-aes {
-  background-color: rgba(16, 185, 129, 0.15);
-  border-color: rgba(16, 185, 129, 0.3);
-  color: #6ee7b7;
-}
-[data-theme="dark"] .pillar-fec {
-  background-color: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #fde68a;
-}
-[data-theme="dark"] .pillar-offline {
-  background-color: rgba(14, 165, 233, 0.15);
-  border-color: rgba(14, 165, 233, 0.3);
-  color: #7dd3fc;
-}
-
-.pillar-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text-main);
-  margin-bottom: 0.25rem;
-}
-
-.pillar-desc {
-  font-size: 11.5px;
-  color: var(--text-muted);
-  line-height: 1.5;
+.spec-bullet {
+  color: var(--border-strong);
+  user-select: none;
+  font-size: 10px;
 }
 
 /* ==========================================================================
@@ -2314,7 +2383,8 @@ button, input, textarea, select {
     gap: 0.75rem;
   }
 
-  .studio-pillars-grid {
+  .home-main-actions {
     grid-template-columns: 1fr;
+    gap: 0.85rem;
   }
 }
