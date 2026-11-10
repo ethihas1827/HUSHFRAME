@@ -24,6 +24,15 @@ phone_photo.jpg
 server_log.txt
 *.log
 
+# Images directories: preserve structure, ignore generated user images
+images/output/*
+!images/output/.gitkeep
+!images/output/README.md
+images/input/*
+!images/input/.gitkeep
+!images/input/README.md
+!images/input/cover.bmp
+
 # Local development and archives
 *.tar.gz
 *.zip

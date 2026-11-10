@@ -183,8 +183,33 @@ static StegoResult save_image_as_bmp(const char *filepath, const StegoImage *img
     return res;
 }
 
+#if defined(_WIN32)
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+
+static void ensure_parent_dirs(const char *path) {
+    if (!path) return;
+    char tmp[512];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    for (char *p = tmp + 1; *p; p++) {
+        if (*p == '/' || *p == '\\') {
+            char sep = *p;
+            *p = '\0';
+#if defined(_WIN32)
+            _mkdir(tmp);
+#else
+            mkdir(tmp, 0755);
+#endif
+            *p = sep;
+        }
+    }
+}
+
 StegoResult stego_image_save(const char *filepath, const StegoImage *image, StegoImageFormat target_format) {
     if (!filepath || !image) return STEGO_ERR_INVALID_ARG;
+    ensure_parent_dirs(filepath);
 
     switch (target_format) {
         case STEGO_FORMAT_BMP:

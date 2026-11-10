@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <direct.h>
 
 #include "stego/stego.h"
 
@@ -184,6 +185,8 @@ static void apply_font_to_children(HWND hwndParent, HFONT hFont) {
 
 static bool browse_open_file(HWND hwndOwner, const char *filter,
                              const char *title, char *out_buf, DWORD max_len) {
+  _mkdir("images");
+  _mkdir("images\\input");
   OPENFILENAMEA ofn;
   ZeroMemory(&ofn, sizeof(ofn));
   ofn.lStructSize = sizeof(ofn);
@@ -192,6 +195,7 @@ static bool browse_open_file(HWND hwndOwner, const char *filter,
   ofn.lpstrFile = out_buf;
   ofn.nMaxFile = max_len;
   ofn.lpstrTitle = title;
+  ofn.lpstrInitialDir = "images\\input";
   ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
   return GetOpenFileNameA(&ofn) != FALSE;
 }
@@ -199,6 +203,8 @@ static bool browse_open_file(HWND hwndOwner, const char *filter,
 static bool browse_save_file(HWND hwndOwner, const char *filter,
                              const char *title, const char *def_ext,
                              char *out_buf, DWORD max_len) {
+  _mkdir("images");
+  _mkdir("images\\output");
   OPENFILENAMEA ofn;
   ZeroMemory(&ofn, sizeof(ofn));
   ofn.lStructSize = sizeof(ofn);
@@ -208,6 +214,7 @@ static bool browse_save_file(HWND hwndOwner, const char *filter,
   ofn.nMaxFile = max_len;
   ofn.lpstrTitle = title;
   ofn.lpstrDefExt = def_ext;
+  ofn.lpstrInitialDir = "images\\output";
   ofn.Flags = OFN_PATHMUSTEXIST | OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
   return GetSaveFileNameA(&ofn) != FALSE;
 }

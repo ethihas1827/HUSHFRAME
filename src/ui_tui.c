@@ -27,15 +27,29 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <io.h>
+#include <direct.h>
 #define isatty_compat _isatty
 #define fileno_compat _fileno
 #else
 #include <unistd.h>
 #include <termios.h>
 #include <sys/ioctl.h>
+#include <sys/stat.h>
 #define isatty_compat isatty
 #define fileno_compat fileno
 #endif
+
+static void tui_ensure_image_dirs(void) {
+#if defined(_WIN32)
+    _mkdir("images");
+    _mkdir("images/input");
+    _mkdir("images/output");
+#else
+    mkdir("images", 0755);
+    mkdir("images/input", 0755);
+    mkdir("images/output", 0755);
+#endif
+}
 
 /* ========================================================================= */
 /* Terminal Styling & ANSI Escape Codes                                      */
@@ -370,6 +384,9 @@ static void tui_render_progress(const char *action_text) {
 /* ========================================================================= */
 
 static const char *g_known_samples[] = {
+    "images/input/cover.bmp",
+    "images/input/cover.png",
+    "images/output/stego.png",
     "samples/cover.png",
     "samples/cover.bmp",
     "samples/cover.jpg",
@@ -621,8 +638,12 @@ static TuiScreenId tui_screen_main(void) {
 /* ========================================================================= */
 
 static TuiScreenId tui_screen_hide(void) {
-    char cover_path[512] = "samples/cover.png";
-    char output_path[512] = "output_stego.png";
+    tui_ensure_image_dirs();
+    char cover_path[512] = "images/input/cover.bmp";
+    if (!tui_file_exists(cover_path)) {
+        snprintf(cover_path, sizeof(cover_path), "samples/cover.bmp");
+    }
+    char output_path[512] = "images/output/stego.png";
     char secret_text[1024] = "Confidential secret payload";
     char secret_file[512] = "samples/secret.txt";
     char password[256] = "";
@@ -947,9 +968,13 @@ static TuiScreenId tui_screen_hide(void) {
 /* ========================================================================= */
 
 static TuiScreenId tui_screen_reveal(void) {
-    char stego_path[512] = "output_stego.png";
+    tui_ensure_image_dirs();
+    char stego_path[512] = "images/output/stego.png";
+    if (!tui_file_exists(stego_path)) {
+        snprintf(stego_path, sizeof(stego_path), "output_stego.png");
+    }
     char password[256] = "";
-    char output_file[512] = "revealed_secret.txt";
+    char output_file[512] = "images/output/revealed_secret.txt";
     bool save_to_file = false;
     bool show_pass = false;
 
@@ -1355,8 +1380,12 @@ static TuiScreenId tui_screen_check(void) {
                         snprintf(result_buffer, sizeof(result_buffer), "  [-] Error: Metadata inspection failed.");
                     }
                 } else if (focused == WID_REMOVE_META) {
+                    tui_ensure_image_dirs();
                     char clean_path[512];
-                    snprintf(clean_path, sizeof(clean_path), "cleaned_%s", image_path);
+                    const char *slash = strrchr(image_path, '/');
+                    if (!slash) slash = strrchr(image_path, '\\');
+                    const char *fname = slash ? slash + 1 : image_path;
+                    snprintf(clean_path, sizeof(clean_path), "images/output/cleaned_%s", fname);
                     if (stego_metadata_strip(image_path, clean_path) == STEGO_OK) {
                         snprintf(result_buffer, sizeof(result_buffer),
                                  "  [+] Success: Metadata stripped safely.\n"
@@ -1496,8 +1525,12 @@ static TuiScreenId tui_screen_privacy(void) {
                 }
 
                 if (focused == WID_SAFE_SHARE) {
+                    tui_ensure_image_dirs();
                     char clean_name[512];
-                    snprintf(clean_name, sizeof(clean_name), "safe_shared_%s", target_path);
+                    const char *slash = strrchr(target_path, '/');
+                    if (!slash) slash = strrchr(target_path, '\\');
+                    const char *fname = slash ? slash + 1 : target_path;
+                    snprintf(clean_name, sizeof(clean_name), "images/output/safe_shared_%s", fname);
                     if (stego_safe_share(target_path, clean_name) == STEGO_OK) {
                         snprintf(result_buffer, sizeof(result_buffer),
                                  "  [+] Safe-Share Created: '%s'\n"

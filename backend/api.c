@@ -11,6 +11,30 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(_WIN32)
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
+
+static void api_save_image(const char *dir, const char *filename, const uint8_t *data, size_t size) {
+    if (!dir || !filename || !data || size == 0) return;
+#if defined(_WIN32)
+    _mkdir("images");
+    _mkdir(dir);
+#else
+    mkdir("images", 0755);
+    mkdir(dir, 0755);
+#endif
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s", dir, filename);
+    FILE *fp = fopen(path, "wb");
+    if (fp) {
+        fwrite(data, 1, size, fp);
+        fclose(fp);
+    }
+}
+
 /* Helper to escape strings for JSON */
 static char *json_escape(const char *str) {
     if (!str) return strdup("");
@@ -172,6 +196,9 @@ static void handle_hide(const HttpRequest *req, HttpResponse *res) {
         secret_filename = "secret.txt";
     }
 
+    const char *cover_fn = (cover_part->filename && cover_part->filename[0]) ? cover_part->filename : "cover.png";
+    api_save_image("images/input", cover_fn, cover_part->data, cover_part->size);
+
     BridgeHideResult result;
     StegoResult sres = bridge_hide_advanced(cover_part->data, cover_part->size,
                                             secret_data, secret_len,
@@ -214,6 +241,9 @@ static void handle_hide(const HttpRequest *req, HttpResponse *res) {
         bridge_hide_result_free(&result);
         return;
     }
+
+    /* Save created protected image to images/output/ */
+    api_save_image("images/output", "protected_image.png", result.png_data, result.png_size);
 
     /* Base64 encode the output PNG */
     char *b64_img = stego_base64_encode(result.png_data, result.png_size);
@@ -300,6 +330,7 @@ static void handle_reveal(const HttpRequest *req, HttpResponse *res) {
     char *esc_label = json_escape(result.protection_label);
     char *esc_env = json_escape(result.envelope_name);
     const char *final_fn = result.filename[0] ? result.filename : (result.is_text ? "recovered_secret.txt" : "recovered_secret.bin");
+    api_save_image("images/output", final_fn, result.payload_data, result.payload_size);
     char *esc_fn = json_escape(final_fn);
     char *esc_sha = json_escape(result.sha256_hex);
     char *b64_file = stego_base64_encode(result.payload_data, result.payload_size);
@@ -577,6 +608,12 @@ static void handle_split_hide(const HttpRequest *req, HttpResponse *res) {
     int bits = bits_str ? atoi(bits_str) : 1;
     if (bits < 1 || bits > 3) bits = 1;
 
+    for (size_t i = 0; i < num_covers; i++) {
+        char fn[64];
+        snprintf(fn, sizeof(fn), "split_cover_%zu.png", i + 1);
+        api_save_image("images/input", fn, cover_ptrs[i], cover_lens[i]);
+    }
+
     BridgeSplitHideResult result;
     StegoResult sres = bridge_split_hide(cover_ptrs, cover_lens, num_covers,
                                          secret_data, secret_len, secret_filename,
@@ -588,6 +625,16 @@ static void handle_split_hide(const HttpRequest *req, HttpResponse *res) {
         api_respond_error(res, 400, result.error_msg[0] ? result.error_msg : "Multi-image split embedding failed.");
         bridge_split_hide_result_free(&result);
         return;
+    }
+
+    /* Save each created split part image to images/output/ */
+    for (uint16_t i = 0; i < result.total_parts; i++) {
+        char part_fn[128];
+        snprintf(part_fn, sizeof(part_fn), "secret_part%u_of_%u.png", i + 1, result.total_parts);
+        api_save_image("images/output", part_fn, result.parts[i].png_data, result.parts[i].png_size);
+    }
+    if (result.manifest_json) {
+        api_save_image("images/output", "manifest.json", (const uint8_t *)result.manifest_json, strlen(result.manifest_json));
     }
 
     /* Encode parts to base64 and generate JSON */
@@ -694,6 +741,7 @@ static void handle_split_reveal(const HttpRequest *req, HttpResponse *res) {
     char *esc_label = json_escape(result.protection_label);
     char *esc_env = json_escape(result.envelope_name);
     const char *final_fn = result.filename[0] ? result.filename : (result.is_text ? "recovered_secret.txt" : "recovered_secret.bin");
+    api_save_image("images/output", final_fn, result.payload_data, result.payload_size);
     char *esc_fn = json_escape(final_fn);
     char *esc_sha = json_escape(result.sha256_hex);
     char *b64_file = stego_base64_encode(result.payload_data, result.payload_size);
@@ -903,6 +951,9 @@ static void handle_metadata_strip(const HttpRequest *req, HttpResponse *res) {
         return;
     }
 
+    const char *in_fn = (part->filename && part->filename[0]) ? part->filename : "photo_input.jpg";
+    api_save_image("images/input", in_fn, part->data, part->size);
+
     BridgeMetadataStripResult result;
     StegoResult sres = bridge_metadata_strip(part->data, part->size, part->filename, &result);
     multipart_free(form);
@@ -912,6 +963,10 @@ static void handle_metadata_strip(const HttpRequest *req, HttpResponse *res) {
         bridge_metadata_strip_result_free(&result);
         return;
     }
+
+    /* Save created stripped image to images/output/ */
+    const char *out_clean_fn = result.clean_filename[0] ? result.clean_filename : "clean_image.png";
+    api_save_image("images/output", out_clean_fn, result.clean_image_data, result.clean_image_size);
 
     char *esc_fn = json_escape(result.clean_filename);
     char *esc_fmt = json_escape(result.format);
