@@ -69,9 +69,11 @@ function revokeAllBlobUrls() {
 
 // DOM Ready initialization
 document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initTabs();
   initDragAndDrop();
   initFormInputs();
+  initSandbox();
   if (typeof HistoryManager !== 'undefined') {
     HistoryManager.render();
   }
@@ -274,6 +276,12 @@ function initFormInputs() {
       el.addEventListener('input', () => {
         checkPasswordMatch();
         evaluateHideCapacity();
+        updateEntropyUI(
+          hidePass,
+          document.getElementById('hideEntropyFill'),
+          document.getElementById('hideEntropyRating'),
+          document.getElementById('hideEntropyBits')
+        );
       });
     });
   }
@@ -2083,6 +2091,202 @@ const HistoryManager = {
 
 function toggleHistoryEnabled(checked) {
   HistoryManager.setEnabled(checked);
+}
+
+/* ==========================================================================
+   Theme Management (Light & Dark Obsidian)
+   ========================================================================== */
+
+function initTheme() {
+  const saved = localStorage.getItem('hushframe_theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  updateThemeIcon(saved);
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme') || 'light';
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('hushframe_theme', next); } catch (e) {}
+  updateThemeIcon(next);
+}
+
+function updateThemeIcon(theme) {
+  const moon = document.querySelector('.icon-moon');
+  const sun = document.querySelector('.icon-sun');
+  if (moon && sun) {
+    if (theme === 'dark') {
+      moon.classList.add('hidden');
+      sun.classList.remove('hidden');
+    } else {
+      moon.classList.remove('hidden');
+      sun.classList.add('hidden');
+    }
+  }
+}
+
+/* ==========================================================================
+   Interactive LSB Bit-Plane & Pixel Sandbox
+   ========================================================================== */
+
+const sandboxState = {
+  r: 178,
+  g: 94,
+  b: 215,
+  secretBit: 1
+};
+
+function initSandbox() {
+  renderSandbox();
+}
+
+function randomizeSandboxPixel() {
+  sandboxState.r = Math.floor(Math.random() * 240) + 10;
+  sandboxState.g = Math.floor(Math.random() * 240) + 10;
+  sandboxState.b = Math.floor(Math.random() * 240) + 10;
+  sandboxState.secretBit = Math.random() > 0.5 ? 1 : 0;
+  renderSandbox();
+}
+
+function toggleSandboxBit() {
+  sandboxState.secretBit = sandboxState.secretBit === 1 ? 0 : 1;
+  renderSandbox();
+}
+
+function renderSandbox() {
+  const origR = sandboxState.r;
+  const stegoR = (origR & ~1) | sandboxState.secretBit;
+  
+  const origBin = origR.toString(2).padStart(8, '0');
+  const stegoBin = stegoR.toString(2).padStart(8, '0');
+  
+  const origColor = `rgb(${origR}, ${sandboxState.g}, ${sandboxState.b})`;
+  const stegoColor = `rgb(${stegoR}, ${sandboxState.g}, ${sandboxState.b})`;
+  
+  const origSwatch = document.getElementById('sbOrigSwatch');
+  const stegoSwatch = document.getElementById('sbStegoSwatch');
+  if (origSwatch) origSwatch.style.backgroundColor = origColor;
+  if (stegoSwatch) stegoSwatch.style.backgroundColor = stegoColor;
+  
+  const origRgb = document.getElementById('sbOrigRgb');
+  const stegoRgb = document.getElementById('sbStegoRgb');
+  if (origRgb) origRgb.textContent = `RGB(${origR}, ${sandboxState.g}, ${sandboxState.b})`;
+  if (stegoRgb) stegoRgb.textContent = `RGB(${stegoR}, ${sandboxState.g}, ${sandboxState.b})`;
+  
+  const origBits = document.getElementById('sbOrigBits');
+  const stegoBits = document.getElementById('sbStegoBits');
+  if (origBits) {
+    origBits.innerHTML = origBin.split('').map((bit, idx) => 
+      `<span class="sb-bit ${idx === 7 ? 'sb-bit-target' : ''}">${bit}</span>`
+    ).join('');
+  }
+  if (stegoBits) {
+    stegoBits.innerHTML = stegoBin.split('').map((bit, idx) => 
+      `<span class="sb-bit ${idx === 7 ? 'sb-bit-modified' : ''}">${bit}</span>`
+    ).join('');
+  }
+  
+  const deltaVal = Math.abs(origR - stegoR);
+  const deltaBadge = document.getElementById('sbDeltaBadge');
+  if (deltaBadge) {
+    deltaBadge.textContent = deltaVal === 0 ? 'Bit matches (Δ = 0)' : 'LSB flipped (Δ = 1/255 ≈ 0.39%)';
+  }
+}
+
+/* ==========================================================================
+   Procedural Sample Carrier Generator (1-Click Interactive Demo)
+   ========================================================================== */
+
+function loadSampleCarrier() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 600;
+  const ctx = canvas.getContext('2d');
+  
+  // High-entropy background gradient
+  const grad = ctx.createLinearGradient(0, 0, 800, 600);
+  grad.addColorStop(0, '#1e1b4b');
+  grad.addColorStop(0.3, '#312e81');
+  grad.addColorStop(0.7, '#065f46');
+  grad.addColorStop(1, '#022c22');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 800, 600);
+  
+  // High-entropy textured organic shapes
+  for (let i = 0; i < 35; i++) {
+    ctx.beginPath();
+    const x = (Math.sin(i * 1.7) * 0.4 + 0.5) * 800;
+    const y = (Math.cos(i * 1.3) * 0.4 + 0.5) * 600;
+    const r = (i * 13) % 150 + 25;
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = `hsla(${(i * 37) % 360}, 75%, 65%, 0.16)`;
+    ctx.fill();
+  }
+  
+  // Lattice grid overlay
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < 800; x += 30) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, 600);
+    ctx.stroke();
+  }
+  for (let y = 0; y < 600; y += 30) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(800, y);
+    ctx.stroke();
+  }
+
+  canvas.toBlob((blob) => {
+    if (!blob) return;
+    const file = new File([blob], 'hushframe_sample_carrier.png', { type: 'image/png' });
+    openHideScreen();
+    handleHideImageSelect(file);
+    showAlert('success', 'Loaded sample carrier image (800×600 PNG, 175 KB capacity). Ready to protect a file!');
+  }, 'image/png');
+}
+
+/* ==========================================================================
+   Live Password Entropy Evaluation
+   ========================================================================== */
+
+function evaluatePasswordEntropy(pwd) {
+  if (!pwd || pwd.length === 0) {
+    return { bits: 0, rating: 'Optional password', class: 'empty' };
+  }
+  
+  let pool = 0;
+  if (/[a-z]/.test(pwd)) pool += 26;
+  if (/[A-Z]/.test(pwd)) pool += 26;
+  if (/[0-9]/.test(pwd)) pool += 10;
+  if (/[^a-zA-Z0-9]/.test(pwd)) pool += 32;
+  
+  const entropy = Math.round(pwd.length * Math.log2(Math.max(pool, 2)));
+  
+  if (entropy < 35) {
+    return { bits: entropy, rating: 'Weak password', class: 'weak' };
+  } else if (entropy < 60) {
+    return { bits: entropy, rating: 'Moderate protection', class: 'moderate' };
+  } else if (entropy < 85) {
+    return { bits: entropy, rating: 'Strong protection', class: 'strong' };
+  } else {
+    return { bits: entropy, rating: 'Cryptographically hardened', class: 'hardened' };
+  }
+}
+
+function updateEntropyUI(inputEl, fillEl, ratingEl, bitsEl) {
+  if (!inputEl) return;
+  const res = evaluatePasswordEntropy(inputEl.value);
+  if (fillEl) {
+    fillEl.className = `entropy-bar-fill ${res.class}`;
+    let width = 0;
+    if (res.bits > 0) width = Math.min(100, Math.max(15, Math.round((res.bits / 90) * 100)));
+    fillEl.style.width = `${width}%`;
+  }
+  if (ratingEl) ratingEl.textContent = res.rating;
+  if (bitsEl) bitsEl.textContent = res.bits > 0 ? `~${res.bits}-bit entropy` : 'Argon2id (RFC 9106)';
 }
 
 function clearLocalHistory() {
