@@ -1,0 +1,9 @@
+CompileFlags:
+  Add:
+    - "-Iinclude"
+    - "-Ibmp-stego/include"
+    - "-Icamocore/include"
+    - "-std=c99"
+    - "-Wall"
+    - "-Wextra"
+

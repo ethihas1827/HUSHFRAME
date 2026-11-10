@@ -1,0 +1,33 @@
+# Object files and libraries
+*.o
+*.obj
+*.a
+*.lib
+obj/
+build/
+
+# Executables
+*.exe
+*.out
+/bmp-stego
+/hushframe
+/hushframe-gui
+/hushframe-server
+/gen_sample
+
+# Temporary and test artifacts
+tmp_*
+output.*
+restored.*
+stego.*
+*.log
+
+# OS / Editor metadata
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.cache/
+.vscode/
+.idea/

@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hushframe — Protect sensitive files within ordinary images</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Clean, Minimal Header -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand" onclick="goHome()" title="Hushframe home">
+        <svg class="brand-logo" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="18" height="18" rx="3.5" ry="3.5"></rect>
+          <path d="M3 15l5.5-5.5a2 2 0 0 1 2.8 0L17 15"></path>
+          <path d="M14 12l2-2a2 2 0 0 1 2.8 0L21 12.2"></path>
+          <circle cx="8" cy="8" r="1.5" fill="currentColor"></circle>
+        </svg>
+        <span class="brand-title">Hushframe</span>
+      </div>
+      <nav class="nav-tabs" role="tablist">
+        <button class="nav-tab active" data-tab="home" role="tab" aria-selected="true" onclick="goHome()">Home</button>
+        <button class="nav-tab" data-tab="hide" role="tab" aria-selected="false" onclick="openHideScreen()">Protect a file</button>
+        <button class="nav-tab" data-tab="reveal" role="tab" aria-selected="false" onclick="openRevealScreen()">Recover a file</button>
+        <button class="nav-tab" data-tab="privacy" role="tab" aria-selected="false" onclick="switchTab('privacy')">Privacy tools</button>
+        <button class="nav-tab" data-tab="capacity" role="tab" aria-selected="false" onclick="switchTab('capacity')">Capacity helper</button>
+        <button class="nav-tab" data-tab="verify" role="tab" aria-selected="false" onclick="switchTab('verify')">Verify image</button>
+        <button class="nav-tab" data-tab="activity" role="tab" aria-selected="false" onclick="switchTab('activity')">Recent activity</button>
+      </nav>
+      <div class="badge-offline">
+        <span class="pulse-dot"></span> Local
+      </div>
+    </div>
+  </header>
+
+  <!-- Notification Banner Container -->
+  <div class="alert-container" id="alertContainer"></div>
+
+  <!-- Main Single-Column Application Shell -->
+  <main class="main-content">
+
+    <!-- ================================================================= -->
+    <!-- TAB 0: HOME SCREEN (Calm, Pure & Minimal)                          -->
+    <!-- ================================================================= -->
+    <div class="tab-pane active" id="pane-home">
+      <div class="home-container">
+        <h1 class="home-title">Protect sensitive files within ordinary images.</h1>
+        <p class="home-subtitle">Your files remain on your device. No account required.</p>
+
+        <div class="home-actions">
+          <button type="button" class="btn btn-primary btn-lg" onclick="openHideScreen()">Protect a file</button>
+          <button type="button" class="btn btn-secondary btn-lg" onclick="openRevealScreen()">Recover a file</button>
+        </div>
+
+        <p class="home-privacy-note">
+          Images and files are processed locally. Nothing is uploaded to a cloud server.
+        </p>
+
+        <div class="home-secondary-links">
+          <button type="button" class="link-btn" onclick="switchTab('privacy')">Privacy tools</button>
+          <span>•</span>
+          <button type="button" class="link-btn" onclick="switchTab('capacity')">Capacity helper</button>
+          <span>•</span>
+          <button type="button" class="link-btn" onclick="switchTab('verify')">Verify image</button>
+          <span>•</span>
+          <button type="button" class="link-btn" onclick="switchTab('activity')">Recent activity</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 1: PROTECT A FILE                                             -->
+    <!-- ================================================================= -->
+    <div class="tab-pane" id="pane-hide">
+      
+      <!-- Sub-mode Switcher for Multi-Image splitting -->
+      <div class="mode-switcher-wrap">
+        <button type="button" class="mode-pill-btn active" id="btnModeHideSingle" onclick="setHideMode('single')">Single image</button>
+        <button type="button" class="mode-pill-btn" id="btnModeHideSplit" onclick="setHideMode('split')">Split across images</button>
+      </div>
+
+      <!-- Single Image Flow -->
+      <div class="workflow-card" id="hideSingleSection">
+        <div class="screen-header">
+          <h2 class="screen-title">Protect a file</h2>
+          <p class="screen-subtitle">Select a cover image and the content you want to protect.</p>
+        </div>
+
+        <!-- Step 1: Select Cover Image -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">1.</span>
+            <span class="step-title">Select a cover image</span>
+          </div>
+
+          <div class="dropzone" id="hideDropzone">
+            <input type="file" id="hideImageInput" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif,image/x-tga" hidden>
+            <div class="dropzone-content">
+              <p class="dropzone-text"><strong>Select a cover image</strong> or drag it here</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('hideImageInput').click()">Browse image</button>
+            </div>
+          </div>
+
+          <!-- Selected Image Meta Card -->
+          <div class="image-meta-card hidden" id="hideImageMeta">
+            <img id="hideThumb" class="meta-thumb" alt="Cover preview">
+            <div class="meta-details">
+              <div class="meta-filename" id="hideMetaName">cover.png</div>
+              <div class="meta-tags">
+                <span class="tag" id="hideMetaDim">0 × 0 px</span>
+                <span class="tag" id="hideMetaFormat">PNG</span>
+                <span class="tag tag-capacity" id="hideMetaCap">Capacity: 0 KB</span>
+              </div>
+              <div class="meta-notice hidden" id="hideMetaNotice"></div>
+            </div>
+            <button type="button" class="btn-icon" title="Remove image" onclick="resetHideImage()">✕</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Choose Content to Protect -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">2.</span>
+            <span class="step-title">Choose the content to protect</span>
+          </div>
+
+          <div class="segmented-control">
+            <label class="segmented-option">
+              <input type="radio" name="secretType" value="text" checked onchange="toggleSecretType()">
+              <span>Text message</span>
+            </label>
+            <label class="segmented-option">
+              <input type="radio" name="secretType" value="file" onchange="toggleSecretType()">
+              <span>File</span>
+            </label>
+          </div>
+
+          <!-- Text Mode -->
+          <div class="secret-box" id="secretTextBox">
+            <textarea id="secretTextMessage" class="form-textarea" placeholder="Type or paste your text message here..."></textarea>
+            <div class="form-helper">
+              <span id="secretCharCount">0 characters</span>
+              <span id="secretSizeEstimate">0 bytes</span>
+            </div>
+          </div>
+
+          <!-- File Mode -->
+          <div class="secret-box hidden" id="secretFileBox">
+            <div class="file-picker-row">
+              <input type="file" id="secretFileInput" class="form-file-input" hidden onchange="if(this.files[0]){ state.hide.secretFile=this.files[0]; document.getElementById('secretFileInfo').textContent=this.files[0].name + ' (' + formatBytes(this.files[0].size) + ')'; validateHideForm(); evaluateHideCapacity(); }">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('secretFileInput').click()">Choose file</button>
+              <div id="secretFileInfo" class="file-info-text">No file chosen</div>
+            </div>
+          </div>
+
+          <!-- Live Capacity Indicator -->
+          <div class="capacity-meter-box hidden" id="hideCapacityMeterBox">
+            <div class="capacity-meter-header">
+              <span>Image space used</span>
+              <span id="hideCapacityStatus">0 B / 0 B (0%)</span>
+            </div>
+            <div class="capacity-meter-track">
+              <div class="capacity-meter-fill" id="hideCapacityFill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Capacity Shortfall Advice Card -->
+          <div class="capacity-shortfall-card hidden" id="capacityShortfallCard">
+            <div class="shortfall-header">
+              <span class="shortfall-icon">⚠️</span>
+              <div>
+                <h3 class="shortfall-title" id="sfTitle">The selected file exceeds the available capacity of this image. Select a larger cover image or reduce the file size.</h3>
+                <p class="shortfall-subtitle">The selected image cannot fit the payload and encryption overhead.</p>
+              </div>
+            </div>
+
+            <div class="shortfall-grid">
+              <div class="shortfall-cell">
+                <span class="sf-label">File name:</span>
+                <span class="sf-value" id="sfSecretName">secret.bin</span>
+              </div>
+              <div class="shortfall-cell">
+                <span class="sf-label">File size:</span>
+                <span class="sf-value" id="sfSecretSize">0 B</span>
+              </div>
+              <div class="shortfall-cell">
+                <span class="sf-label">Available capacity:</span>
+                <span class="sf-value" id="sfAvailableCap">0 B</span>
+              </div>
+              <div class="shortfall-cell">
+                <span class="sf-label">Additional space required:</span>
+                <span class="sf-value text-danger" id="sfAdditionalReq">0 B</span>
+              </div>
+              <div class="shortfall-cell full-width">
+                <span class="sf-label">Recommended minimum image dimensions:</span>
+                <span class="sf-value" id="sfRecDimensions">0 × 0 px</span>
+              </div>
+            </div>
+
+            <div class="shortfall-actions-label">Recommended practical solutions:</div>
+            <div class="shortfall-actions-grid">
+              <button type="button" class="shortfall-choice-btn" onclick="document.getElementById('hideImageInput').click()">
+                <div class="choice-text">
+                  <strong>Select a larger cover image</strong>
+                  <span>Pick an image with higher resolution</span>
+                </div>
+              </button>
+
+              <button type="button" class="shortfall-choice-btn" id="btnChoiceCompress" onclick="applyCompressionChoice()">
+                <div class="choice-text">
+                  <strong>Compress file before protecting</strong>
+                  <span>Enable lossless RFC 1951 DEFLATE</span>
+                </div>
+              </button>
+
+              <button type="button" class="shortfall-choice-btn" onclick="switchToSplitMode()">
+                <div class="choice-text">
+                  <strong>Split across multiple images</strong>
+                  <span>Divide content across two or more images</span>
+                </div>
+              </button>
+
+              <button type="button" class="shortfall-choice-btn" id="btnChoiceHighCap" onclick="applyHighCapChoice()">
+                <div class="choice-text">
+                  <strong>Use 2-bit or 3-bit mode</strong>
+                  <span>Multi-bit LSB (increases capacity)</span>
+                </div>
+              </button>
+            </div>
+            <div class="shortfall-cancel-row">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="dismissCapacityCard()">Dismiss</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Step 3: Password Protection -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">3.</span>
+            <span class="step-title">Add password protection</span>
+          </div>
+          <p class="step-hint">Leave blank for standard protection, or enter a password for authenticated encryption.</p>
+
+          <div class="form-row mt-3">
+            <div class="form-col">
+              <label for="hidePassword" class="form-label">Password</label>
+              <div class="password-input-wrap">
+                <input type="password" id="hidePassword" class="form-input" placeholder="Password (optional)" autocomplete="off">
+                <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('hidePassword')">👁</button>
+              </div>
+            </div>
+            <div class="form-col">
+              <label for="hidePasswordConfirm" class="form-label">Confirm password</label>
+              <div class="password-input-wrap">
+                <input type="password" id="hidePasswordConfirm" class="form-input" placeholder="Confirm password" autocomplete="off">
+                <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('hidePasswordConfirm')">👁</button>
+              </div>
+            </div>
+          </div>
+          <div class="password-match-msg" id="passwordMatchMsg"></div>
+
+          <!-- Advanced Collapsible Details -->
+          <details class="advanced-section">
+            <summary class="advanced-summary">Advanced options</summary>
+            <div class="advanced-body">
+              <label class="checkbox-label">
+                <input type="checkbox" id="hideAdaptive">
+                <span>Adaptive texture embedding (PNG only)</span>
+              </label>
+              <p class="advanced-hint">Embeds data only in complex, textured image regions.</p>
+
+              <label class="checkbox-label mt-3">
+                <input type="checkbox" id="hideCompress" onchange="onCompressToggle()">
+                <span>Compress file before protecting (RFC 1951 DEFLATE)</span>
+              </label>
+              <p class="advanced-hint">Compresses before encryption. Note: Compression does not help for already compressed files (ZIP, JPEG, MP3, MP4, WEBP).</p>
+              <div class="compression-status-badge hidden" id="compressionStatusBadge">Estimated compressed size: -</div>
+
+              <div class="form-group mt-3">
+                <label for="hideBits" class="form-label">Embedding bit depth</label>
+                <select id="hideBits" class="form-select" onchange="onBitsChange()">
+                  <option value="1" selected>1-bit LSB (Standard: default, imperceptible)</option>
+                  <option value="2">2-bit LSB (High capacity: 2× space)</option>
+                  <option value="3">3-bit LSB (Maximum capacity: 3× space)</option>
+                </select>
+                <p class="advanced-hint" id="hideBitsHint">1-bit replaces the least significant bit per color channel.</p>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <!-- Step 4: Primary Action & Progress -->
+        <div class="step-card">
+          <div class="action-row">
+            <button type="button" class="btn btn-primary btn-lg w-full" id="btnHideSecret" onclick="submitHideSecret()" disabled>
+              Protect file
+            </button>
+          </div>
+
+          <div class="progress-wrap hidden" id="hideProgress">
+            <div class="progress-bar">
+              <div class="progress-fill" id="hideProgressFill"></div>
+            </div>
+            <div class="progress-label" id="hideProgressLabel">Protecting file and embedding in image...</div>
+          </div>
+
+          <!-- Clean Success Screen -->
+          <div class="result-card hidden" id="hideResultCard">
+            <div class="result-header">
+              <h3 class="result-title">Your protected image is ready.</h3>
+              <p class="result-subtitle" id="hideResultSub">File protected and embedded successfully.</p>
+            </div>
+
+            <div class="result-body">
+              <div class="result-preview-wrap">
+                <img id="hideResultPreview" class="result-preview" alt="Protected image preview">
+              </div>
+
+              <div class="result-meta-grid">
+                <div class="meta-item">
+                  <span class="meta-label">Protection</span>
+                  <span class="meta-value" id="hideResultProtection">Password protected</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Format</span>
+                  <span class="meta-value">Lossless PNG</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">File size</span>
+                  <span class="meta-value" id="hideResultSize">0 KB</span>
+                </div>
+              </div>
+              <div class="result-notice hidden" id="hideResultNotice"></div>
+            </div>
+
+            <div class="result-actions">
+              <button type="button" id="btnDownloadProtected" class="btn btn-primary btn-lg" onclick="downloadProtectedImage()">Download protected image</button>
+              <button type="button" class="btn btn-secondary" onclick="openHideScreen()">Protect another file</button>
+              <button type="button" class="btn btn-secondary" onclick="goHome()">Return to home</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Multi-Image Splitting Section -->
+      <div class="workflow-card hidden" id="hideSplitSection">
+        <div class="screen-header">
+          <h2 class="screen-title">Split file across images</h2>
+          <p class="screen-subtitle">Divide a large file across multiple cover images.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">1.</span>
+            <span class="step-title">Select two or more cover images</span>
+          </div>
+
+          <div class="dropzone" id="splitCoverDropzone">
+            <input type="file" id="splitCoverInput" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif" multiple hidden onchange="handleSplitCoversSelected(this.files)">
+            <div class="dropzone-content">
+              <p class="dropzone-text"><strong>Select two or more cover images</strong> or drag them here</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitCoverInput').click()">Browse images</button>
+            </div>
+          </div>
+
+          <div class="multi-covers-container hidden" id="splitCoversContainer">
+            <div class="multi-covers-header">
+              <span id="splitCoversCount">0 cover images selected</span>
+              <span class="tag tag-capacity" id="splitCombinedCap">Combined: 0 KB</span>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="clearSplitCovers()">Clear</button>
+            </div>
+            <div class="multi-covers-grid" id="splitCoversGrid"></div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">2.</span>
+            <span class="step-title">Choose the content to protect</span>
+          </div>
+
+          <div class="segmented-control">
+            <label class="segmented-option">
+              <input type="radio" name="splitSecretType" value="file" checked onchange="toggleSplitSecretType()">
+              <span>File</span>
+            </label>
+            <label class="segmented-option">
+              <input type="radio" name="splitSecretType" value="text" onchange="toggleSplitSecretType()">
+              <span>Text message</span>
+            </label>
+          </div>
+
+          <div class="secret-box" id="splitSecretFileBox">
+            <div class="file-picker-row">
+              <input type="file" id="splitSecretFileInput" class="form-file-input" hidden onchange="handleSplitSecretFile(this.files[0])">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitSecretFileInput').click()">Choose file</button>
+              <div id="splitSecretFileInfo" class="file-info-text">No file chosen</div>
+            </div>
+          </div>
+
+          <div class="secret-box hidden" id="splitSecretTextBox">
+            <textarea id="splitSecretTextMsg" class="form-textarea" placeholder="Enter message to split..." oninput="handleSplitSecretText()"></textarea>
+            <div class="form-helper">
+              <span id="splitSecretCharCount">0 characters</span>
+              <span id="splitSecretSize">0 bytes</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">3.</span>
+            <span class="step-title">Add password protection</span>
+          </div>
+
+          <div class="form-row mt-3">
+            <div class="form-col">
+              <label for="splitPassword" class="form-label">Password</label>
+              <div class="password-input-wrap">
+                <input type="password" id="splitPassword" class="form-input" placeholder="Password (optional)" autocomplete="off">
+                <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('splitPassword')">👁</button>
+              </div>
+            </div>
+            <div class="form-col">
+              <label for="splitPasswordConfirm" class="form-label">Confirm password</label>
+              <div class="password-input-wrap">
+                <input type="password" id="splitPasswordConfirm" class="form-input" placeholder="Confirm password" autocomplete="off">
+                <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('splitPasswordConfirm')">👁</button>
+              </div>
+            </div>
+          </div>
+          <div class="password-match-msg" id="splitPasswordMatchMsg"></div>
+
+          <details class="advanced-section">
+            <summary class="advanced-summary">Advanced options</summary>
+            <div class="advanced-body">
+              <label class="checkbox-label">
+                <input type="checkbox" id="splitCompress">
+                <span>Compress file before splitting (RFC 1951 DEFLATE)</span>
+              </label>
+            </div>
+          </details>
+        </div>
+
+        <div class="step-card">
+          <div class="action-row">
+            <button type="button" class="btn btn-primary btn-lg w-full" id="btnSplitSecret" onclick="submitSplitHide()" disabled>
+              Protect and split file
+            </button>
+          </div>
+
+          <div class="progress-wrap hidden" id="splitProgress">
+            <div class="progress-bar">
+              <div class="progress-fill" id="splitProgressFill"></div>
+            </div>
+            <div class="progress-label" id="splitProgressLabel">Encrypting and embedding chunks...</div>
+          </div>
+
+          <div class="result-card hidden" id="splitResultCard">
+            <div class="result-header">
+              <h3 class="result-title">Your protected images are ready.</h3>
+              <p class="result-subtitle">File partitioned into <span id="splitResultTotal">0</span> part images.</p>
+            </div>
+
+            <div class="result-body">
+              <div class="manifest-card">
+                <div class="manifest-title">Session manifest:</div>
+                <div class="manifest-details" id="splitManifestDetails"></div>
+              </div>
+
+              <div class="parts-list-title">Generated part images:</div>
+              <div class="parts-download-grid" id="splitPartsDownloadGrid"></div>
+            </div>
+
+            <div class="result-actions">
+              <button type="button" class="btn btn-primary" onclick="downloadAllSplitParts()">Download all parts</button>
+              <button type="button" class="btn btn-secondary" onclick="downloadSplitManifest()">Download manifest (.json)</button>
+              <button type="button" class="btn btn-secondary" onclick="switchToSplitReveal()">Recover file</button>
+              <button type="button" class="btn btn-secondary" onclick="goHome()">Return to home</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 2: RECOVER A FILE                                             -->
+    <!-- ================================================================= -->
+    <div class="tab-pane" id="pane-reveal">
+      
+      <div class="mode-switcher-wrap">
+        <button type="button" class="mode-pill-btn active" id="btnModeRevSingle" onclick="setRevealMode('single')">Single image</button>
+        <button type="button" class="mode-pill-btn" id="btnModeRevSplit" onclick="setRevealMode('split')">Recombine split parts</button>
+      </div>
+
+      <!-- Single Image Reveal -->
+      <div class="workflow-card" id="revealSingleSection">
+        <div class="screen-header">
+          <h2 class="screen-title">Recover a file</h2>
+          <p class="screen-subtitle">Extract a protected message or file from an image.</p>
+        </div>
+
+        <!-- Step 1: Protected Image -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">1.</span>
+            <span class="step-title">Select a protected image</span>
+          </div>
+
+          <div class="dropzone" id="revealDropzone">
+            <input type="file" id="revealImageInput" accept="image/png,image/bmp,image/jpeg,image/webp,image/gif" hidden>
+            <div class="dropzone-content">
+              <p class="dropzone-text"><strong>Select a protected image</strong> or drag it here</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('revealImageInput').click()">Browse image</button>
+            </div>
+          </div>
+
+          <div class="image-meta-card hidden" id="revealImageMeta">
+            <img id="revealThumb" class="meta-thumb" alt="Protected image preview">
+            <div class="meta-details">
+              <div class="meta-filename" id="revealMetaName">protected.png</div>
+              <div class="meta-tags">
+                <span class="tag" id="revealMetaSize">0 KB</span>
+                <span class="tag" id="revealMetaFormat">PNG</span>
+              </div>
+            </div>
+            <button type="button" class="btn-icon" title="Remove image" onclick="resetRevealImage()">✕</button>
+          </div>
+        </div>
+
+        <!-- Step 2: Password -->
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">2.</span>
+            <span class="step-title">Enter password</span>
+          </div>
+
+          <div class="password-input-wrap">
+            <input type="password" id="revealPassword" class="form-input" placeholder="Password (if protected)" autocomplete="off">
+            <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('revealPassword')">👁</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Reveal Action & Result Area -->
+        <div class="step-card">
+          <div class="action-row">
+            <button type="button" class="btn btn-primary btn-lg w-full" id="btnRevealSecret" onclick="submitRevealSecret()" disabled>
+              Recover file
+            </button>
+          </div>
+
+          <div class="progress-wrap hidden" id="revealProgress">
+            <div class="progress-bar">
+              <div class="progress-fill" id="revealProgressFill"></div>
+            </div>
+            <div class="progress-label" id="revealProgressLabel">Verifying authentication and recovering file...</div>
+          </div>
+
+          <!-- Recovered Secret Result Card -->
+          <div class="result-card hidden" id="revealResultCard">
+            <div class="result-header">
+              <h3 class="result-title">File recovered successfully.</h3>
+              <p class="result-subtitle" id="revealResultSub">File authenticated and recovered.</p>
+            </div>
+
+            <!-- Recovered Text Display -->
+            <div class="secret-result-box hidden" id="revealTextBox">
+              <div class="result-toolbar">
+                <span class="result-tag" id="revealPayloadTag">0 bytes recovered</span>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="copyRecoveredText()">Copy text</button>
+              </div>
+              <textarea id="revealResultText" class="result-textarea" readonly></textarea>
+            </div>
+
+            <!-- Recovered File Download -->
+            <div class="secret-file-box hidden" id="revealFileBox">
+              <div class="file-download-card">
+                <div class="file-desc">
+                  <div class="file-name" id="revealFileName">recovered_file.bin</div>
+                  <div class="file-size" id="revealFileSize">0 bytes</div>
+                </div>
+                <button type="button" id="btnDownloadRecoveredFile" class="btn btn-primary btn-sm" onclick="downloadRecoveredFile()">Download recovered file</button>
+              </div>
+            </div>
+
+            <div class="result-actions">
+              <button type="button" class="btn btn-secondary" onclick="openRevealScreen()">Recover another file</button>
+              <button type="button" class="btn btn-secondary" onclick="goHome()">Return to home</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Multi-Image Recombination Section -->
+      <div class="workflow-card hidden" id="revealSplitSection">
+        <div class="screen-header">
+          <h2 class="screen-title">Recombine split parts</h2>
+          <p class="screen-subtitle">Select all split part images to recover the original file.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">1.</span>
+            <span class="step-title">Select all part images</span>
+          </div>
+
+          <div class="dropzone" id="splitRevDropzone">
+            <input type="file" id="splitRevInput" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif" multiple hidden onchange="handleSplitRevPartsSelected(this.files)">
+            <div class="dropzone-content">
+              <p class="dropzone-text"><strong>Select all part images</strong> (in any order)</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitRevInput').click()">Browse part images</button>
+            </div>
+          </div>
+
+          <div class="multi-covers-container hidden" id="splitRevPartsContainer">
+            <div class="multi-covers-header">
+              <span id="splitRevPartsCount">0 part images selected</span>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="clearSplitRevParts()">Clear</button>
+            </div>
+            <div class="multi-covers-grid" id="splitRevPartsGrid"></div>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-header">
+            <span class="step-number">2.</span>
+            <span class="step-title">Enter password</span>
+          </div>
+
+          <div class="password-input-wrap">
+            <input type="password" id="splitRevPassword" class="form-input" placeholder="Password (if protected)" autocomplete="off">
+            <button type="button" class="btn-toggle-eye" onclick="togglePasswordVisibility('splitRevPassword')">👁</button>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="action-row">
+            <button type="button" class="btn btn-primary btn-lg w-full" id="btnSplitReveal" onclick="submitSplitReveal()" disabled>
+              Recover file
+            </button>
+          </div>
+
+          <div class="progress-wrap hidden" id="splitRevProgress">
+            <div class="progress-bar">
+              <div class="progress-fill" id="splitRevProgressFill"></div>
+            </div>
+            <div class="progress-label" id="splitRevProgressLabel">Authenticating parts and reconstructing file...</div>
+          </div>
+
+          <div class="result-card hidden" id="splitRevResultCard">
+            <div class="result-header">
+              <h3 class="result-title">File recovered successfully.</h3>
+              <p class="result-subtitle" id="splitRevSub">All parts verified and recombined.</p>
+            </div>
+
+            <div class="secret-result-box hidden" id="splitRevTextBox">
+              <div class="result-toolbar">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="copySplitRecoveredText()">Copy text</button>
+              </div>
+              <textarea id="splitRevText" class="result-textarea" readonly></textarea>
+            </div>
+
+            <div class="secret-file-box hidden" id="splitRevFileBox">
+              <div class="file-download-card">
+                <div class="file-desc">
+                  <div class="file-name" id="splitRevFileName">recovered_file.bin</div>
+                  <div class="file-size" id="splitRevFileSize">0 bytes</div>
+                </div>
+                <button type="button" id="btnDownloadSplitRecoveredFile" class="btn btn-primary btn-sm" onclick="downloadSplitRecoveredFile()">Download recovered file</button>
+              </div>
+            </div>
+
+            <div class="result-actions">
+              <button type="button" class="btn btn-secondary" onclick="openRevealScreen()">Recover another file</button>
+              <button type="button" class="btn btn-secondary" onclick="goHome()">Return to home</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 3: VERIFY IMAGE                                               -->
+    <!-- ================================================================= -->
+    <div class="tab-pane" id="pane-verify">
+      <div class="workflow-card">
+        <div class="screen-header">
+          <h2 class="screen-title">Verify an image</h2>
+          <p class="screen-subtitle">Check whether an image contains protected content without extracting it.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="dropzone" id="verifyDropzone">
+            <input type="file" id="verifyImageInput" accept="image/png,image/bmp,image/jpeg,image/webp,image/gif" hidden>
+            <div class="dropzone-content">
+              <p class="dropzone-text"><strong>Select an image</strong> to verify</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('verifyImageInput').click()">Browse image</button>
+            </div>
+          </div>
+
+          <div class="image-meta-card hidden" id="verifyImageMeta">
+            <img id="verifyThumb" class="meta-thumb" alt="Verify image">
+            <div class="meta-details">
+              <div class="meta-filename" id="verifyMetaName">image.png</div>
+            </div>
+            <button type="button" class="btn-icon" title="Remove image" onclick="resetVerifyImage()">✕</button>
+          </div>
+
+          <div class="action-row">
+            <button type="button" class="btn btn-primary btn-lg w-full" id="btnVerifyImage" onclick="submitVerifyImage()" disabled>
+              Verify image
+            </button>
+          </div>
+
+          <div class="result-card hidden" id="verifyResultCard">
+            <div class="result-header">
+              <h3 class="result-title" id="verifyResultTitle">Protected content detected</h3>
+              <p class="result-subtitle" id="verifyResultMsg"></p>
+            </div>
+            <div class="result-meta-grid">
+              <div class="meta-item">
+                <span class="meta-label">Protected content</span>
+                <span class="meta-value" id="verifyHasPayload">Yes</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Protection</span>
+                <span class="meta-value" id="verifyProtection">Password protected</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Payload size</span>
+                <span class="meta-value" id="verifyPayloadSize">0 bytes</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 4: CAPACITY & INFO                                            -->
+    <!-- ================================================================= -->
+    <div class="tab-pane" id="pane-capacity">
+      <div class="workflow-card">
+        <div class="screen-header">
+          <h2 class="screen-title">Check image capacity</h2>
+          <p class="screen-subtitle">Calculate available storage capacity for an image.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="dropzone" id="capDropzone">
+            <input type="file" id="capImageInput" accept="image/png,image/bmp,image/jpeg,image/webp,image/gif" hidden>
+            <div class="dropzone-content">
+              <p class="dropzone-text"><strong>Select an image</strong> to check capacity</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('capImageInput').click()">Browse image</button>
+            </div>
+          </div>
+
+          <div class="image-meta-card hidden" id="capImageMeta">
+            <img id="capThumb" class="meta-thumb" alt="Capacity image">
+            <div class="meta-details">
+              <div class="meta-filename" id="capMetaName">image.png</div>
+            </div>
+            <button type="button" class="btn-icon" title="Remove image" onclick="resetCapImage()">✕</button>
+          </div>
+
+          <div class="action-row">
+            <button type="button" class="btn btn-primary btn-lg w-full" id="btnCheckCapacity" onclick="submitCheckCapacity()" disabled>
+              Calculate capacity
+            </button>
+          </div>
+
+          <div class="result-card hidden" id="capResultCard">
+            <div class="result-header">
+              <h3 class="result-title">Storage capacity</h3>
+              <p class="result-subtitle">Image analysis completed.</p>
+            </div>
+            <div class="capacity-metrics-grid">
+              <div class="metric-card">
+                <div class="metric-val" id="capValEnc">0 KB</div>
+                <div class="metric-label">Password-protected capacity</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-val" id="capValUnenc">0 KB</div>
+                <div class="metric-label">Standard capacity</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-val" id="capValDim">0 × 0</div>
+                <div class="metric-label">Dimensions</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-val" id="capValFormat">PNG</div>
+                <div class="metric-label">Format</div>
+              </div>
+            </div>
+            <div class="meta-notice hidden" id="capResultNotice"></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 5: PRIVACY TOOLS (EXIF / GPS Inspection & Stripping)          -->
+    <!-- ================================================================= -->
+    <div class="tab-pane" id="pane-privacy">
+      <div class="workflow-card">
+        <div class="screen-header">
+          <h2 class="screen-title">Photo details & privacy tools</h2>
+          <p class="screen-subtitle">Inspect photos for location coordinates, camera information, and sensitive metadata. Remove location data cleanly before sharing.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="dropzone" id="privDropzone">
+            <input type="file" id="privImageInput" accept="image/png,image/jpeg,image/bmp,image/webp" hidden>
+            <div class="dropzone-content">
+              <p class="dropzone-text"><strong>Select an image</strong> to inspect details and location</p>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('privImageInput').click()">Browse image</button>
+            </div>
+          </div>
+
+          <div class="image-meta-card hidden" id="privImageMeta">
+            <img id="privThumb" class="meta-thumb" alt="Privacy image preview">
+            <div class="meta-details">
+              <div class="meta-filename" id="privMetaName">image.jpg</div>
+              <div class="meta-tags">
+                <span class="tag" id="privMetaSize">0 KB</span>
+              </div>
+            </div>
+            <button type="button" class="btn-icon" title="Remove image" onclick="resetPrivacyImage()">✕</button>
+          </div>
+
+          <div class="action-row">
+            <button type="button" class="btn btn-primary btn-lg w-full" id="btnScanPrivacy" onclick="submitScanPrivacy()" disabled>
+              Inspect photo details
+            </button>
+          </div>
+
+          <!-- Metadata Scan Results -->
+          <div class="result-card hidden" id="privResultCard">
+            <div class="result-header">
+              <div class="privacy-risk-header">
+                <div>
+                  <h3 class="result-title">Photo details</h3>
+                  <p class="result-subtitle" id="privRiskReason">Analysis completed.</p>
+                </div>
+                <div id="privRiskBadge" class="badge-risk badge-risk-low">Low risk</div>
+              </div>
+            </div>
+
+            <!-- Location Information Found Section -->
+            <div class="location-card hidden" id="privLocationSection">
+              <div class="location-header">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <h4 class="location-title">Location information found</h4>
+              </div>
+              <p class="location-warning">This image may reveal where it was taken.</p>
+
+              <div class="location-grid">
+                <div class="location-stat">
+                  <div class="location-stat-label">Latitude</div>
+                  <div class="location-stat-val" id="privGpsLat">—</div>
+                </div>
+                <div class="location-stat">
+                  <div class="location-stat-label">Longitude</div>
+                  <div class="location-stat-val" id="privGpsLon">—</div>
+                </div>
+                <div class="location-stat hidden" id="privAltWrap">
+                  <div class="location-stat-label">Altitude</div>
+                  <div class="location-stat-val" id="privGpsAlt">—</div>
+                </div>
+                <div class="location-stat hidden" id="privTimeWrap">
+                  <div class="location-stat-label">Timestamp</div>
+                  <div class="location-stat-val" id="privGpsTime">—</div>
+                </div>
+              </div>
+
+              <div class="location-actions">
+                <a id="btnOpenMaps" class="btn btn-secondary btn-sm" target="_blank" rel="noopener noreferrer">
+                  Open in Maps
+                </a>
+                <button type="button" class="btn btn-primary btn-sm" id="btnRemoveLocation" onclick="submitStripMetadata()">
+                  Remove location data
+                </button>
+              </div>
+            </div>
+
+            <!-- No GPS Notice -->
+            <div id="privNoGpsNotice" class="no-gps-notice hidden">
+              <span>No location information was found in this image.</span>
+            </div>
+
+            <!-- General Photo Metadata -->
+            <div class="privacy-grid" style="margin-top: 1rem;">
+              <div class="privacy-item">
+                <span class="privacy-item-label">Camera and device</span>
+                <span class="privacy-item-val" id="privValCamera">None detected</span>
+              </div>
+              <div class="privacy-item">
+                <span class="privacy-item-label">Software / editor</span>
+                <span class="privacy-item-val" id="privValSoftware">None detected</span>
+              </div>
+              <div class="privacy-item">
+                <span class="privacy-item-label">Capture timestamp</span>
+                <span class="privacy-item-val" id="privValDate">None detected</span>
+              </div>
+              <div class="privacy-item">
+                <span class="privacy-item-label">Metadata size</span>
+                <span class="privacy-item-val" id="privValBytes">0 bytes</span>
+              </div>
+            </div>
+
+            <!-- Optional Technical Details Collapsible -->
+            <details class="tech-details-accordion" style="margin-top: 1rem;">
+              <summary class="tech-summary">Technical details</summary>
+              <div class="tech-content" id="privTechDetails" style="font-size: 12px; font-family: ui-monospace, monospace; line-height: 1.6;">
+                <!-- Populated dynamically -->
+              </div>
+            </details>
+
+            <div class="action-row" id="privStripRow" style="margin-top: 1.25rem;">
+              <button type="button" class="btn btn-secondary btn-lg w-full" id="btnStripMetadata" onclick="submitStripMetadata()">
+                Remove all metadata
+              </button>
+            </div>
+          </div>
+
+          <!-- Clean Output Card -->
+          <div class="result-card hidden" id="privCleanCard" style="margin-top: 1rem; border-color: #22c55e;">
+            <div class="result-header">
+              <h3 class="result-title" style="color: #15803d;">Clean image ready</h3>
+              <p class="result-subtitle" id="privCleanNotice">Location data removed. Your cleaned image is ready.</p>
+            </div>
+            <div class="action-row">
+              <button type="button" class="btn btn-primary btn-lg w-full" onclick="downloadCleanImage()">
+                Download clean image
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- TAB 6: LOCAL RECENT ACTIVITY (100% Client-Side LocalStorage)       -->
+    <!-- ================================================================= -->
+    <div class="tab-pane" id="pane-activity">
+      <div class="workflow-card">
+        <div class="screen-header">
+          <h2 class="screen-title">Recent activity</h2>
+          <p class="screen-subtitle">A private record of operations performed during your session.</p>
+        </div>
+
+        <div class="step-card">
+          <div class="meta-notice" style="margin-bottom: 1.25rem;">
+            <strong>Privacy guarantee:</strong> Passwords, encryption keys, and file contents are never stored or logged. All records stay strictly in your browser local storage.
+          </div>
+
+          <div class="activity-controls-row">
+            <label class="activity-toggle-label">
+              <input type="checkbox" id="histToggle" onchange="toggleHistoryEnabled(this.checked)" checked>
+              <span>Save activity to local storage</span>
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="clearLocalHistory()">Clear activity</button>
+          </div>
+
+          <div id="histListContainer" class="activity-table-wrap">
+            <table class="activity-table" id="histTable">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Action</th>
+                  <th>Input file</th>
+                  <th>Output file</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="histTableBody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+            <div id="histEmptyState" class="empty-state-notice">
+              No recent activity recorded.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Unprotected Confirmation Modal -->
+  <div class="modal-backdrop hidden" id="unprotectedModal">
+    <div class="modal-card">
+      <h3 class="modal-title">Proceed without password?</h3>
+      <p class="modal-desc">
+        You did not enter a password. Anyone who opens this image with Hushframe will be able to recover the file.
+      </p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" onclick="closeUnprotectedModal(true)">Set a password</button>
+        <button type="button" class="btn btn-secondary" onclick="confirmUnprotectedProceed()">Proceed without password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Restrained Technical Details Footer -->
+  <footer class="footer-section">
+    <details class="tech-details-accordion">
+      <summary class="tech-summary">Advanced and technical details</summary>
+      <div class="tech-content">
+        <ul>
+          <li><strong>Local & offline:</strong> The backend binds strictly to <code>127.0.0.1</code> and makes zero external network calls.</li>
+          <li><strong>Authenticated encryption:</strong> Uses Argon2id (RFC 9106) key derivation and AES-256-GCM (NIST SP 800-38D) AEAD.</li>
+          <li><strong>Integrity protection:</strong> Tampered bits or incorrect passwords fail authentication without leaking partial plaintext.</li>
+          <li><strong>Lossless preservation:</strong> JPEG, WebP, and GIF carriers are normalized to 8-bit RGB/RGBA and saved as lossless PNG to avoid compression loss.</li>
+          <li><strong>Memory sanitization:</strong> Volatile memory is wiped with secure zeroing after key derivation and encryption.</li>
+        </ul>
+      </div>
+    </details>
+    <div class="footer-copy">Hushframe • Protect sensitive files within ordinary images • Local processing only</div>
+  </footer>
+
+  <script src="constants.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
