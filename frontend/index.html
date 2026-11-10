@@ -11,12 +11,14 @@
   <header class="navbar">
     <div class="nav-container">
       <div class="brand" onclick="goHome()" title="Hushframe home">
-        <svg class="brand-logo" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="18" height="18" rx="3.5" ry="3.5"></rect>
-          <path d="M3 15l5.5-5.5a2 2 0 0 1 2.8 0L17 15"></path>
-          <path d="M14 12l2-2a2 2 0 0 1 2.8 0L21 12.2"></path>
-          <circle cx="8" cy="8" r="1.5" fill="currentColor"></circle>
-        </svg>
+        <div class="brand-logo-wrap">
+          <svg class="brand-logo" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="3.5" ry="3.5"></rect>
+            <path d="M3 15l5.5-5.5a2 2 0 0 1 2.8 0L17 15"></path>
+            <path d="M14 12l2-2a2 2 0 0 1 2.8 0L21 12.2"></path>
+            <circle cx="8" cy="8" r="1.5" fill="currentColor"></circle>
+          </svg>
+        </div>
         <span class="brand-title">Hushframe</span>
       </div>
       <nav class="nav-tabs" role="tablist">
@@ -70,29 +72,37 @@
 
         <!-- Quick Access Tools Grid -->
         <div class="home-secondary-tools">
-          <div class="tool-chip" onclick="switchTab('privacy')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div class="tool-chip tool-chip-privacy" onclick="switchTab('privacy')">
+            <div class="tool-chip-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
             <div class="tool-chip-info">
               <span class="tool-chip-title">Photo details & privacy</span>
               <span class="tool-chip-desc">Inspect and strip EXIF & GPS location</span>
             </div>
           </div>
-          <div class="tool-chip" onclick="switchTab('capacity')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+          <div class="tool-chip tool-chip-capacity" onclick="switchTab('capacity')">
+            <div class="tool-chip-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            </div>
             <div class="tool-chip-info">
               <span class="tool-chip-title">Capacity helper</span>
               <span class="tool-chip-desc">Calculate payload fit before embedding</span>
             </div>
           </div>
-          <div class="tool-chip" onclick="switchTab('verify')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          <div class="tool-chip tool-chip-verify" onclick="switchTab('verify')">
+            <div class="tool-chip-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
             <div class="tool-chip-info">
               <span class="tool-chip-title">Verify image</span>
               <span class="tool-chip-desc">Check for embedded payload without extracting</span>
             </div>
           </div>
-          <div class="tool-chip" onclick="switchTab('activity')">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <div class="tool-chip tool-chip-activity" onclick="switchTab('activity')">
+            <div class="tool-chip-icon-box">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
             <div class="tool-chip-info">
               <span class="tool-chip-title">Recent activity</span>
               <span class="tool-chip-desc">Private local history of your operations</span>
