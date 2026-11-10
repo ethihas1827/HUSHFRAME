@@ -291,6 +291,18 @@ static bool test_cleaned_output_has_no_exif(void) {
     const char *orig_path = "phone_photo.jpg";
     const char *clean_path = "tmp_test_verified_no_exif.jpg";
 
+    FILE *chk = fopen(orig_path, "rb");
+    if (!chk) {
+        orig_path = "tmp_test_orig_no_exif.jpg";
+        FILE *w = fopen(orig_path, "wb");
+        if (w) {
+            fwrite(s_min_jpeg, 1, sizeof(s_min_jpeg), w);
+            fclose(w);
+        }
+    } else {
+        fclose(chk);
+    }
+
     StegoResult res = stego_metadata_strip(orig_path, clean_path);
     if (res != STEGO_OK) return false;
 

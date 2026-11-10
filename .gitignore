@@ -20,7 +20,13 @@ tmp_*
 output.*
 restored.*
 stego.*
+phone_photo.jpg
+server_log.txt
 *.log
+
+# Local development and archives
+*.tar.gz
+*.zip
 
 # OS / Editor metadata
 .DS_Store
