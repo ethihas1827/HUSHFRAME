@@ -19,10 +19,21 @@ build/
 tmp_*
 output.*
 restored.*
-stego.*
+/stego.bmp
+/stego.png
+*.test.bmp
+*.test.png
 phone_photo.jpg
 server_log.txt
 *.log
+
+# Sensitive credentials and secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
 
 # Images directories: preserve structure, ignore generated user images
 images/output/*
@@ -36,6 +47,7 @@ images/input/*
 # Local development and archives
 *.tar.gz
 *.zip
+HUSHFRAME/
 
 # OS / Editor metadata
 .DS_Store

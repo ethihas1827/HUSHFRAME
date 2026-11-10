@@ -126,7 +126,7 @@ StegoResult stego_file_payload_unpack(const uint8_t *packed_data,
 
     /* Read filename */
     uint16_t fn_len = ((uint16_t)packed_data[4] << 8) | (uint16_t)packed_data[5];
-    if (6 + fn_len > packed_len) return STEGO_ERR_CORRUPT_PAYLOAD;
+    if ((size_t)(6 + fn_len) > packed_len) return STEGO_ERR_CORRUPT_PAYLOAD;
 
     char fn[256] = {0};
     size_t copy_fn = (fn_len < 255) ? fn_len : 255;
