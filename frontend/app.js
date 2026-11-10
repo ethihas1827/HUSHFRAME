@@ -2058,16 +2058,34 @@ const HistoryManager = {
 
     if (!this.isEnabled()) {
       table.style.display = 'none';
-      emptyState.style.display = 'block';
-      emptyState.textContent = 'Activity history is currently disabled.';
+      emptyState.style.display = 'flex';
+      emptyState.innerHTML = `
+        <div class="empty-state-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+          </svg>
+        </div>
+        <h4 class="empty-state-title">Activity logging is disabled</h4>
+        <p class="empty-state-desc">Enable "Save activity to local storage" above to record operations in this session.</p>
+      `;
       return;
     }
 
     const items = this.getAll();
     if (items.length === 0) {
       table.style.display = 'none';
-      emptyState.style.display = 'block';
-      emptyState.textContent = 'No recent activity recorded.';
+      emptyState.style.display = 'flex';
+      emptyState.innerHTML = `
+        <div class="empty-state-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <h4 class="empty-state-title">No recent activity</h4>
+        <p class="empty-state-desc">Operations you perform during this session will be recorded privately in your browser.</p>
+      `;
       return;
     }
 
@@ -2077,12 +2095,52 @@ const HistoryManager = {
 
     items.forEach(item => {
       const tr = document.createElement('tr');
+      const actionText = String(item.action || '');
+      const actionLower = actionText.toLowerCase();
+
+      let actionClass = 'action-neutral';
+      let actionIcon = '';
+      if (actionLower.includes('protect') || actionLower.includes('hide')) {
+        actionClass = 'action-protect';
+        actionIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+      } else if (actionLower.includes('recover') || actionLower.includes('reveal')) {
+        actionClass = 'action-recover';
+        actionIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+      } else if (actionLower.includes('split') || actionLower.includes('recombine')) {
+        actionClass = 'action-neutral';
+        actionIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>';
+      } else if (actionLower.includes('metadata') || actionLower.includes('privacy')) {
+        actionClass = 'action-neutral';
+        actionIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+      }
+
+      const inputVal = item.inputName || '—';
+      const outputVal = item.outputName || '—';
+
       tr.innerHTML = `
-        <td style="color: var(--text-subtle); font-size: 12px; white-space: nowrap;">${item.date} ${item.time}</td>
-        <td><strong>${escapeHtml(item.action)}</strong></td>
-        <td><code>${escapeHtml(item.inputName)}</code></td>
-        <td><code>${escapeHtml(item.outputName)}</code></td>
-        <td><span class="badge ${item.isProtected ? 'badge-protected' : 'badge-unprotected'}">${item.isProtected ? 'Protected' : 'Unprotected'}</span></td>
+        <td class="col-timestamp">
+          <div class="activity-time-wrap">
+            <span class="activity-date">${escapeHtml(item.date || '')}</span>
+            <span class="activity-time">${escapeHtml(item.time || '')}</span>
+          </div>
+        </td>
+        <td class="col-action">
+          <span class="activity-action-chip ${actionClass}">
+            ${actionIcon}
+            <span>${escapeHtml(actionText)}</span>
+          </span>
+        </td>
+        <td class="col-file">
+          <span class="activity-filename" title="${escapeHtml(inputVal)}">${escapeHtml(inputVal)}</span>
+        </td>
+        <td class="col-file">
+          <span class="activity-filename" title="${escapeHtml(outputVal)}">${escapeHtml(outputVal)}</span>
+        </td>
+        <td class="col-status">
+          <span class="badge ${item.isProtected ? 'badge-protected' : 'badge-unprotected'}">
+            ${item.isProtected ? 'Protected' : 'Unprotected'}
+          </span>
+        </td>
       `;
       tbody.appendChild(tr);
     });

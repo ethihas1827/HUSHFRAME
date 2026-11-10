@@ -1136,25 +1136,37 @@
               <input type="checkbox" id="histToggle" onchange="toggleHistoryEnabled(this.checked)" checked>
               <span>Save activity to local storage</span>
             </label>
-            <button type="button" class="btn btn-secondary btn-sm" id="btnClearHistory" onclick="HistoryManager.clear()">Clear history</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btnClearHistory" onclick="HistoryManager.clear()">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Clear history
+            </button>
           </div>
 
           <div class="activity-table-wrap">
             <table class="activity-table" id="histTable">
               <thead>
                 <tr>
-                  <th>Timestamp</th>
-                  <th>Action</th>
-                  <th>Cover image</th>
-                  <th>Output file</th>
-                  <th>Protection</th>
+                  <th class="col-timestamp">Timestamp</th>
+                  <th class="col-action">Action</th>
+                  <th class="col-file">Cover image</th>
+                  <th class="col-file">Output file</th>
+                  <th class="col-status">Protection</th>
                 </tr>
               </thead>
               <tbody id="histTableBody">
                 <!-- Dynamically populated -->
               </tbody>
             </table>
-            <div class="empty-state hidden" id="histEmptyState">No recent activity recorded.</div>
+            <div class="empty-state hidden" id="histEmptyState">
+              <div class="empty-state-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <h4 class="empty-state-title">No recent activity</h4>
+              <p class="empty-state-desc">Operations you perform during this session will be recorded privately in your browser.</p>
+            </div>
           </div>
 
         </div>
