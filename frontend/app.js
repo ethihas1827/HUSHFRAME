@@ -2177,7 +2177,50 @@ const HistoryManager = {
     this.render();
   },
 
+  renderLocalStorageInspector() {
+    const keyCountEl = document.getElementById('lsKeyCount');
+    const keysListEl = document.getElementById('lsKeysList');
+    const sizeUsedEl = document.getElementById('lsSizeUsed');
+    const rawPreEl = document.getElementById('lsRawPre');
+
+    if (!keyCountEl || !rawPreEl) return;
+
+    let totalBytes = 0;
+    const hushframeKeys = [];
+    const storageSnapshot = {};
+
+    try {
+      if (typeof localStorage !== 'undefined') {
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (!key) continue;
+          const val = localStorage.getItem(key) || '';
+          totalBytes += (key.length + val.length) * 2;
+          if (key.startsWith('hushframe_') || key.startsWith('bmp_stego_')) {
+            hushframeKeys.push(key);
+            try {
+              storageSnapshot[key] = JSON.parse(val);
+            } catch (_) {
+              storageSnapshot[key] = val;
+            }
+          }
+        }
+      }
+    } catch (e) {
+      // Storage access blocked or restricted
+    }
+
+    keyCountEl.textContent = `${hushframeKeys.length} active`;
+    keysListEl.textContent = hushframeKeys.length > 0 ? hushframeKeys.join(', ') : 'No records yet';
+    sizeUsedEl.textContent = formatBytes(totalBytes);
+
+    rawPreEl.textContent = Object.keys(storageSnapshot).length > 0 
+      ? JSON.stringify(storageSnapshot, null, 2)
+      : '{\n  /* LocalStorage is ready. Operations and preferences stay 100% on this device. */\n}';
+  },
+
   render() {
+    this.renderLocalStorageInspector();
     const table = document.getElementById('histTable');
     const tbody = document.getElementById('histTableBody');
     const emptyState = document.getElementById('histEmptyState');
@@ -2314,17 +2357,30 @@ function updateThemeIcon(theme) {
 }
 
 /* ==========================================================================
-   Interactive LSB Bit-Plane & Pixel Sandbox
+   Interactive LSB Bit-Plane & Pixel Sandbox (Live Steganography Simulator)
    ========================================================================== */
 
 const sandboxState = {
   r: 178,
   g: 94,
   b: 215,
+  channel: 'r',
   secretBit: 1
 };
 
 function initSandbox() {
+  renderSandbox();
+}
+
+function setSandboxChannel(chan) {
+  if (chan === 'r' || chan === 'g' || chan === 'b') {
+    sandboxState.channel = chan;
+    renderSandbox();
+  }
+}
+
+function setSandboxBit(bit) {
+  sandboxState.secretBit = bit === 1 ? 1 : 0;
   renderSandbox();
 }
 
@@ -2342,42 +2398,112 @@ function toggleSandboxBit() {
 }
 
 function renderSandbox() {
+  const chan = sandboxState.channel || 'r';
+  const chanNames = { r: 'Red', g: 'Green', b: 'Blue' };
+  const chanName = chanNames[chan] || 'Red';
+
   const origR = sandboxState.r;
-  const stegoR = (origR & ~1) | sandboxState.secretBit;
-  
-  const origBin = origR.toString(2).padStart(8, '0');
-  const stegoBin = stegoR.toString(2).padStart(8, '0');
-  
-  const origColor = `rgb(${origR}, ${sandboxState.g}, ${sandboxState.b})`;
-  const stegoColor = `rgb(${stegoR}, ${sandboxState.g}, ${sandboxState.b})`;
-  
+  const origG = sandboxState.g;
+  const origB = sandboxState.b;
+
+  const origByte = chan === 'r' ? origR : (chan === 'g' ? origG : origB);
+  const stegoByte = (origByte & ~1) | sandboxState.secretBit;
+
+  const stegoR = chan === 'r' ? stegoByte : origR;
+  const stegoG = chan === 'g' ? stegoByte : origG;
+  const stegoB = chan === 'b' ? stegoByte : origB;
+
+  const origBin = origByte.toString(2).padStart(8, '0');
+  const stegoBin = stegoByte.toString(2).padStart(8, '0');
+
+  const origColor = `rgb(${origR}, ${origG}, ${origB})`;
+  const stegoColor = `rgb(${stegoR}, ${stegoG}, ${stegoB})`;
+
   const origSwatch = document.getElementById('sbOrigSwatch');
   const stegoSwatch = document.getElementById('sbStegoSwatch');
   if (origSwatch) origSwatch.style.backgroundColor = origColor;
   if (stegoSwatch) stegoSwatch.style.backgroundColor = stegoColor;
-  
+
   const origRgb = document.getElementById('sbOrigRgb');
   const stegoRgb = document.getElementById('sbStegoRgb');
-  if (origRgb) origRgb.textContent = `RGB(${origR}, ${sandboxState.g}, ${sandboxState.b})`;
-  if (stegoRgb) stegoRgb.textContent = `RGB(${stegoR}, ${sandboxState.g}, ${sandboxState.b})`;
-  
+  if (origRgb) origRgb.textContent = `RGB(${origR}, ${origG}, ${origB})`;
+  if (stegoRgb) stegoRgb.textContent = `RGB(${stegoR}, ${stegoG}, ${stegoB})`;
+
+  const origBitLabel = document.getElementById('sbOrigBitLabel');
+  const stegoBitLabel = document.getElementById('sbStegoBitLabel');
+  if (origBitLabel) origBitLabel.textContent = `8-bit ${chanName} Channel`;
+  if (stegoBitLabel) stegoBitLabel.textContent = `Modulated ${chanName} Channel`;
+
   const origBits = document.getElementById('sbOrigBits');
   const stegoBits = document.getElementById('sbStegoBits');
+  const isBitModified = (origByte !== stegoByte);
+
   if (origBits) {
     origBits.innerHTML = origBin.split('').map((bit, idx) => 
-      `<span class="sb-bit ${idx === 7 ? 'sb-bit-target' : ''}">${bit}</span>`
+      `<span class="sb-bit ${idx === 7 ? 'sb-bit-target' : ''}" title="${idx === 7 ? 'Least Significant Bit (LSB)' : `Bit ${7 - idx}`}">${bit}</span>`
     ).join('');
   }
+
   if (stegoBits) {
-    stegoBits.innerHTML = stegoBin.split('').map((bit, idx) => 
-      `<span class="sb-bit ${idx === 7 ? 'sb-bit-modified' : ''}">${bit}</span>`
-    ).join('');
+    stegoBits.innerHTML = stegoBin.split('').map((bit, idx) => {
+      let extraClass = '';
+      if (idx === 7) {
+        extraClass = isBitModified ? 'sb-bit-modified' : 'sb-bit-matched';
+      }
+      return `<span class="sb-bit ${extraClass}" title="${idx === 7 ? (isBitModified ? 'LSB replaced with secret bit' : 'LSB matched naturally') : `Bit ${7 - idx}`}">${bit}</span>`;
+    }).join('');
   }
-  
-  const deltaVal = Math.abs(origR - stegoR);
+
+  const opPill = document.getElementById('sbOperationPill');
+  if (opPill) {
+    opPill.textContent = `Secret bit to hide: ${sandboxState.secretBit}`;
+  }
+
+  const deltaVal = Math.abs(origByte - stegoByte);
   const deltaBadge = document.getElementById('sbDeltaBadge');
   if (deltaBadge) {
-    deltaBadge.textContent = deltaVal === 0 ? 'Bit matches (Δ = 0)' : 'LSB flipped (Δ = 1/255 ≈ 0.39%)';
+    if (deltaVal === 0) {
+      deltaBadge.className = 'sb-delta-badge delta-matched';
+      deltaBadge.textContent = `Natural Match (Δ = 0 / 0% change)`;
+    } else {
+      deltaBadge.className = 'sb-delta-badge delta-modified';
+      deltaBadge.textContent = `LSB Modulated: ${origByte % 2} → ${sandboxState.secretBit} (Δ = 1/255 ≈ 0.39%)`;
+    }
+  }
+
+  const explanation = document.getElementById('sbExplanationText');
+  if (explanation) {
+    if (deltaVal === 0) {
+      explanation.innerHTML = `<strong>Natural match (0% change):</strong> The original pixel's 8th bit in the <em>${chanName}</em> channel was already <code>${sandboxState.secretBit}</code>. Hushframe leaves the byte at <code>${origByte}</code> unchanged. Perfectly hidden with zero alteration!`;
+    } else {
+      explanation.innerHTML = `<strong>LSB modulation (imperceptible):</strong> The 8th bit (LSB) in the <em>${chanName}</em> channel was replaced from <code>${origByte % 2}</code> to <code>${sandboxState.secretBit}</code>. The channel value shifted from <code>${origByte}</code> to <code>${stegoByte}</code> (a 0.39% shift). Compare the color swatches above — human eyes cannot distinguish this difference, but Hushframe extracts it with 100% mathematical precision!`;
+    }
+  }
+
+  // Update channel pill active states
+  ['r', 'g', 'b'].forEach(c => {
+    const btn = document.getElementById(`sbChan${c.toUpperCase()}`);
+    if (btn) btn.classList.toggle('active', chan === c);
+  });
+
+  // Update bit button active states
+  const b0 = document.getElementById('sbBit0Btn');
+  const b1 = document.getElementById('sbBit1Btn');
+  if (b0) b0.classList.toggle('active', sandboxState.secretBit === 0);
+  if (b1) b1.classList.toggle('active', sandboxState.secretBit === 1);
+}
+
+function copyLocalStorageJson() {
+  const pre = document.getElementById('lsRawPre');
+  if (!pre) return;
+  if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(pre.textContent).then(() => {
+      showAlert('success', 'LocalStorage JSON copied to clipboard!');
+    }).catch(() => {
+      showAlert('info', 'Copied text: check console or select manually.');
+    });
+  } else {
+    showAlert('info', 'Clipboard API unavailable. You can select and copy the JSON text manually.');
   }
 }
 
