@@ -22,6 +22,30 @@
 /* Base64 encoding table */
 static const char b64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
+static const char *format_to_ext(StegoImageFormat fmt) {
+    switch (fmt) {
+        case STEGO_FORMAT_BMP:  return ".bmp";
+        case STEGO_FORMAT_JPEG: return ".jpg";
+        case STEGO_FORMAT_WEBP: return ".webp";
+        case STEGO_FORMAT_GIF:  return ".gif";
+        case STEGO_FORMAT_TGA:  return ".tga";
+        case STEGO_FORMAT_PNG:
+        default:                return ".png";
+    }
+}
+
+static const char *format_to_mime(StegoImageFormat fmt) {
+    switch (fmt) {
+        case STEGO_FORMAT_BMP:  return "image/bmp";
+        case STEGO_FORMAT_JPEG: return "image/jpeg";
+        case STEGO_FORMAT_WEBP: return "image/webp";
+        case STEGO_FORMAT_GIF:  return "image/gif";
+        case STEGO_FORMAT_TGA:  return "image/x-tga";
+        case STEGO_FORMAT_PNG:
+        default:                return "image/png";
+    }
+}
+
 char *stego_base64_encode(const uint8_t *data, size_t input_length) {
     if (!data || input_length == 0) return strdup("");
 
@@ -68,10 +92,10 @@ uint8_t *stego_base64_decode(const char *data, size_t *out_len) {
 
     size_t i = 0, j = 0;
     while (i < input_length) {
-        uint32_t sextet_a = data[i] == '=' ? 0 & i++ : decoding_table[(unsigned char)data[i++]];
-        uint32_t sextet_b = data[i] == '=' ? 0 & i++ : decoding_table[(unsigned char)data[i++]];
-        uint32_t sextet_c = data[i] == '=' ? 0 & i++ : decoding_table[(unsigned char)data[i++]];
-        uint32_t sextet_d = data[i] == '=' ? 0 & i++ : decoding_table[(unsigned char)data[i++]];
+        uint32_t sextet_a = (data[i] == '=') ? (i++, 0U) : (uint32_t)decoding_table[(unsigned char)data[i++]];
+        uint32_t sextet_b = (data[i] == '=') ? (i++, 0U) : (uint32_t)decoding_table[(unsigned char)data[i++]];
+        uint32_t sextet_c = (data[i] == '=') ? (i++, 0U) : (uint32_t)decoding_table[(unsigned char)data[i++]];
+        uint32_t sextet_d = (data[i] == '=') ? (i++, 0U) : (uint32_t)decoding_table[(unsigned char)data[i++]];
 
         uint32_t triple = (sextet_a << 18) | (sextet_b << 12) | (sextet_c << 6) | sextet_d;
 
@@ -292,7 +316,7 @@ StegoResult bridge_split_hide(const uint8_t **cover_bytes_array, const size_t *c
     for (uint16_t i = 0; i < num_covers; i++) {
         StegoImageFormat fmt = STEGO_FORMAT_PNG;
         uploads_is_valid_image(cover_bytes_array[i], cover_lens[i], &fmt);
-        const char *ext = (fmt == STEGO_FORMAT_BMP) ? ".bmp" : ".png";
+        const char *ext = format_to_ext(fmt);
         tmp_covers[i] = uploads_create_temp_file(cover_bytes_array[i], cover_lens[i], ext);
     }
 
@@ -344,7 +368,7 @@ StegoResult bridge_split_hide(const uint8_t **cover_bytes_array, const size_t *c
         }
     }
 
-    char manifest_path[512];
+    char manifest_path[1024];
     snprintf(manifest_path, sizeof(manifest_path), "%s_manifest.json", tmp_prefix);
     FILE *mfp = fopen(manifest_path, "rb");
     if (mfp) {
@@ -640,7 +664,7 @@ StegoResult bridge_verify(const uint8_t *img_bytes, size_t img_len,
         return STEGO_ERR_INVALID_FORMAT;
     }
 
-    const char *ext = (fmt == STEGO_FORMAT_BMP) ? ".bmp" : ".png";
+    const char *ext = format_to_ext(fmt);
     char *tmp_img = uploads_create_temp_file(img_bytes, img_len, ext);
     if (!tmp_img) {
         snprintf(out->error_msg, sizeof(out->error_msg), "Failed to process image.");
@@ -714,7 +738,7 @@ StegoResult bridge_capacity(const uint8_t *img_bytes, size_t img_len,
     if (!out) return STEGO_ERR_INVALID_ARG;
     memset(out, 0, sizeof(BridgeCapacityResult));
 
-    if (!img_bytes || img_len < 8) {
+    if (!img_bytes || img_len < 3) {
         snprintf(out->error_msg, sizeof(out->error_msg), "That file does not look like a valid image.");
         return STEGO_ERR_INVALID_FORMAT;
     }
@@ -725,7 +749,10 @@ StegoResult bridge_capacity(const uint8_t *img_bytes, size_t img_len,
         return STEGO_ERR_INVALID_FORMAT;
     }
 
-    const char *ext = (fmt == STEGO_FORMAT_BMP) ? ".bmp" : ".png";
+    out->file_size = img_len;
+    snprintf(out->mime_type, sizeof(out->mime_type), "%s", format_to_mime(fmt));
+
+    const char *ext = format_to_ext(fmt);
     char *tmp_img = uploads_create_temp_file(img_bytes, img_len, ext);
     if (!tmp_img) {
         snprintf(out->error_msg, sizeof(out->error_msg), "Failed to process image.");

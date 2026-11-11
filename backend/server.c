@@ -278,7 +278,7 @@ int main(int argc, char **argv) {
 
         /* Read full body if present */
         if (req.content_length > 0) {
-            size_t body_already_read = bytes_read - header_bytes;
+            size_t body_already_read = (bytes_read > header_bytes) ? (bytes_read - header_bytes) : 0;
             size_t needed = req.content_length;
 
             uint8_t *full_body = (uint8_t *)malloc(needed + 1);

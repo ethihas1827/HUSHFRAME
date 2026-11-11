@@ -6,29 +6,30 @@
 #ifndef STEGO_MASTER_H
 #define STEGO_MASTER_H
 
-#include "stego/error.h"
-#include "stego/buffer.h"
-#include "stego/bitstream.h"
-#include "stego/random.h"
-#include "stego/crypto.h"
-#include "stego/payload.h"
-#include "stego/fec.h"
-#include "stego/image_format.h"
-#include "stego/image_loader.h"
-#include "stego/image_writer.h"
-#include "stego/carrier.h"
-#include "stego/bmp_carrier.h"
-#include "stego/png_carrier.h"
-#include "stego/jpeg_carrier.h"
-#include "stego/heic_carrier.h"
-#include "stego/metadata.h"
-#include "stego/privacy.h"
-#include "stego/analysis.h"
-#include "stego/cli.h"
-#include "stego/compress.h"
-#include "stego/capacity.h"
-#include "stego/split.h"
-#include "stego/file_payload.h"
+/* Umbrella header exports: all sub-module interfaces are intentionally re-exported */
+#include "stego/error.h"         // IWYU pragma: export
+#include "stego/buffer.h"        // IWYU pragma: export
+#include "stego/bitstream.h"     // IWYU pragma: export
+#include "stego/random.h"        // IWYU pragma: export
+#include "stego/crypto.h"        // IWYU pragma: export
+#include "stego/payload.h"       // IWYU pragma: export
+#include "stego/fec.h"           // IWYU pragma: export
+#include "stego/image_format.h"  // IWYU pragma: export
+#include "stego/image_loader.h"  // IWYU pragma: export
+#include "stego/image_writer.h"  // IWYU pragma: export
+#include "stego/carrier.h"       // IWYU pragma: export
+#include "stego/bmp_carrier.h"   // IWYU pragma: export
+#include "stego/png_carrier.h"   // IWYU pragma: export
+#include "stego/jpeg_carrier.h"  // IWYU pragma: export
+#include "stego/heic_carrier.h"  // IWYU pragma: export
+#include "stego/metadata.h"      // IWYU pragma: export
+#include "stego/privacy.h"       // IWYU pragma: export
+#include "stego/analysis.h"      // IWYU pragma: export
+#include "stego/cli.h"           // IWYU pragma: export
+#include "stego/compress.h"      // IWYU pragma: export
+#include "stego/capacity.h"      // IWYU pragma: export
+#include "stego/split.h"         // IWYU pragma: export
+#include "stego/file_payload.h"  // IWYU pragma: export
 
 #ifdef __cplusplus
 extern "C" {

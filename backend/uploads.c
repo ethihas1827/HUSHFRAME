@@ -32,43 +32,62 @@ static const uint8_t *bin_search(const uint8_t *haystack, size_t haystack_len,
 }
 
 static char *extract_param(const char *header, const char *param_name) {
+    if (!header || !param_name) return NULL;
     size_t plen = strlen(param_name);
     const char *p = header;
-    while ((p = strstr(p, param_name)) != NULL) {
-        /* Verify param_name is preceded by space, semicolon, or start */
-        if (p > header && *(p - 1) != ' ' && *(p - 1) != ';') {
-            p += plen;
+
+    while (*p) {
+        if (*p == '"') {
+            /* Skip quoted string so param names inside quotes are ignored */
+            p++;
+            while (*p && *p != '"') {
+                if (*p == '\\' && *(p + 1)) p++;
+                p++;
+            }
+            if (*p == '"') p++;
             continue;
         }
-        p += plen;
-        while (*p == ' ' || *p == '=') p++;
-        if (*p == '"') {
-            p++;
-            const char *end = strchr(p, '"');
-            if (end) {
-                size_t val_len = end - p;
-                char *val = (char *)malloc(val_len + 1);
-                if (val) {
-                    memcpy(val, p, val_len);
-                    val[val_len] = '\0';
-                    return val;
-                }
-            }
-        } else {
-            const char *end = p;
-            while (*end && *end != ' ' && *end != ';' && *end != '\r' && *end != '\n') {
-                end++;
-            }
-            size_t val_len = end - p;
-            if (val_len > 0) {
-                char *val = (char *)malloc(val_len + 1);
-                if (val) {
-                    memcpy(val, p, val_len);
-                    val[val_len] = '\0';
-                    return val;
+
+        /* Check for parameter name start preceded by boundary character */
+        if ((p == header || *(p - 1) == ' ' || *(p - 1) == ';' || *(p - 1) == '\t') &&
+            _strnicmp(p, param_name, plen) == 0) {
+            const char *after = p + plen;
+            while (*after == ' ' || *after == '\t') after++;
+            if (*after == '=') {
+                after++;
+                while (*after == ' ' || *after == '\t') after++;
+                if (*after == '"') {
+                    after++;
+                    const char *end = after;
+                    while (*end && *end != '"') {
+                        if (*end == '\\' && *(end + 1)) end++;
+                        end++;
+                    }
+                    size_t val_len = (size_t)(end - after);
+                    char *val = (char *)malloc(val_len + 1);
+                    if (val) {
+                        memcpy(val, after, val_len);
+                        val[val_len] = '\0';
+                        return val;
+                    }
+                } else {
+                    const char *end = after;
+                    while (*end && *end != ' ' && *end != ';' && *end != '\r' && *end != '\n' && *end != '\t') {
+                        end++;
+                    }
+                    size_t val_len = (size_t)(end - after);
+                    if (val_len > 0) {
+                        char *val = (char *)malloc(val_len + 1);
+                        if (val) {
+                            memcpy(val, after, val_len);
+                            val[val_len] = '\0';
+                            return val;
+                        }
+                    }
                 }
             }
         }
+        p++;
     }
     return NULL;
 }
@@ -167,8 +186,10 @@ MultipartForm *multipart_parse(const uint8_t *body, size_t body_len, const char 
         remaining = (body + body_len) - cur;
         const uint8_t *next_bnd = bin_search(cur, remaining, (const uint8_t *)delim, delim_len);
         size_t part_size = 0;
+        size_t advance_len = delim_len;
         if (next_bnd) {
             part_size = next_bnd - cur;
+            advance_len = delim_len;
         } else {
             /* Fallback to full_bnd */
             next_bnd = bin_search(cur, remaining, (const uint8_t *)full_bnd, bnd_len);
@@ -177,8 +198,10 @@ MultipartForm *multipart_parse(const uint8_t *body, size_t body_len, const char 
                 if (part_size >= 2 && cur[part_size - 2] == '\r' && cur[part_size - 1] == '\n') {
                     part_size -= 2;
                 }
+                advance_len = bnd_len;
             } else {
                 part_size = remaining;
+                advance_len = remaining;
             }
         }
 
@@ -218,7 +241,7 @@ MultipartForm *multipart_parse(const uint8_t *body, size_t body_len, const char 
         part->is_file = (filename != NULL);
 
         if (next_bnd) {
-            cur = next_bnd + delim_len;
+            cur = next_bnd + advance_len;
         } else {
             break;
         }
@@ -266,10 +289,10 @@ void multipart_free(MultipartForm *form) {
 }
 
 bool uploads_is_valid_image(const uint8_t *data, size_t size, StegoImageFormat *out_fmt) {
-    if (!data || size < 4) return false;
+    if (!data || size < 3) return false;
     StegoImageFormat fmt = stego_detect_format_buffer(data, size);
     if (out_fmt) *out_fmt = fmt;
-    return (fmt != STEGO_FORMAT_UNKNOWN);
+    return (fmt != STEGO_FORMAT_UNKNOWN && fmt != STEGO_FORMAT_HEIC);
 }
 
 char *uploads_create_temp_file(const uint8_t *data, size_t size, const char *suffix) {

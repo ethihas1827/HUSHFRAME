@@ -543,6 +543,181 @@ static bool test_api_privacy_report_without_gps(void) {
 }
 
 /* ------------------------------------------------------------------------- */
+/* Test 17: Capacity API endpoint with PNG image                             */
+/* ------------------------------------------------------------------------- */
+static bool test_api_capacity_png(void) {
+    size_t img_len = 0;
+    uint8_t *img = read_file_bytes("samples/compat/rgb8.png", &img_len);
+    if (!img) return false;
+
+    const char *boundary = "----CapPngBoundary12345";
+    size_t cap = img_len + 1024;
+    uint8_t *body = (uint8_t *)malloc(cap);
+    if (!body) { free(img); return false; }
+
+    int hlen = snprintf((char *)body, cap,
+        "--%s\r\nContent-Disposition: form-data; name=\"image\"; filename=\"rgb8.png\"\r\nContent-Type: image/png\r\n\r\n", boundary);
+    memcpy(body + hlen, img, img_len);
+    free(img);
+    int tlen = snprintf((char *)body + hlen + img_len, cap - hlen - img_len, "\r\n--%s--\r\n", boundary);
+    size_t total_len = hlen + img_len + tlen;
+
+    HttpRequest req;
+    memset(&req, 0, sizeof(req));
+    req.method = HTTP_METHOD_POST;
+    strncpy(req.path, "/api/capacity", sizeof(req.path) - 1);
+    strncpy(req.boundary, boundary, sizeof(req.boundary) - 1);
+    req.body = body;
+    req.body_len = total_len;
+    req.content_length = total_len;
+
+    HttpResponse res;
+    http_response_init(&res, 200, "application/json");
+    api_handle_request(&req, &res);
+    free(body);
+
+    bool ok = false;
+    if (res.status_code == 200 && res.body) {
+        const char *s = (const char *)res.body;
+        ok = (strstr(s, "\"success\":true") != NULL &&
+              strstr(s, "\"format\":\"PNG\"") != NULL &&
+              strstr(s, "\"mime_type\":\"image/png\"") != NULL &&
+              strstr(s, "\"file_size\":") != NULL &&
+              strstr(s, "\"encrypted_capacity\":812") != NULL);
+    }
+    http_response_free(&res);
+    return ok;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Test 18: Capacity API endpoint with JPEG image                            */
+/* ------------------------------------------------------------------------- */
+static bool test_api_capacity_jpeg(void) {
+    size_t img_len = 0;
+    uint8_t *img = read_file_bytes("samples/compat/sample.jpg", &img_len);
+    if (!img) return false;
+
+    const char *boundary = "----CapJpgBoundary12345";
+    size_t cap = img_len + 1024;
+    uint8_t *body = (uint8_t *)malloc(cap);
+    if (!body) { free(img); return false; }
+
+    int hlen = snprintf((char *)body, cap,
+        "--%s\r\nContent-Disposition: form-data; name=\"image\"; filename=\"sample.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n", boundary);
+    memcpy(body + hlen, img, img_len);
+    free(img);
+    int tlen = snprintf((char *)body + hlen + img_len, cap - hlen - img_len, "\r\n--%s--\r\n", boundary);
+    size_t total_len = hlen + img_len + tlen;
+
+    HttpRequest req;
+    memset(&req, 0, sizeof(req));
+    req.method = HTTP_METHOD_POST;
+    strncpy(req.path, "/api/capacity", sizeof(req.path) - 1);
+    strncpy(req.boundary, boundary, sizeof(req.boundary) - 1);
+    req.body = body;
+    req.body_len = total_len;
+    req.content_length = total_len;
+
+    HttpResponse res;
+    http_response_init(&res, 200, "application/json");
+    api_handle_request(&req, &res);
+    free(body);
+
+    bool ok = false;
+    if (res.status_code == 200 && res.body) {
+        const char *s = (const char *)res.body;
+        ok = (strstr(s, "\"success\":true") != NULL &&
+              strstr(s, "\"format\":\"JPEG\"") != NULL &&
+              strstr(s, "\"mime_type\":\"image/jpeg\"") != NULL &&
+              strstr(s, "\"file_size\":") != NULL &&
+              strstr(s, "\"encrypted_capacity\":") != NULL);
+    }
+    http_response_free(&res);
+    return ok;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Test 19: Capacity API endpoint with alternative field name "cover"        */
+/* ------------------------------------------------------------------------- */
+static bool test_api_capacity_cover_field(void) {
+    size_t img_len = 0;
+    uint8_t *img = read_file_bytes("samples/compat/rgb8.png", &img_len);
+    if (!img) return false;
+
+    const char *boundary = "----CapCoverBoundary12345";
+    size_t cap = img_len + 1024;
+    uint8_t *body = (uint8_t *)malloc(cap);
+    if (!body) { free(img); return false; }
+
+    int hlen = snprintf((char *)body, cap,
+        "--%s\r\nContent-Disposition: form-data; name=\"cover\"; filename=\"rgb8.png\"\r\nContent-Type: image/png\r\n\r\n", boundary);
+    memcpy(body + hlen, img, img_len);
+    free(img);
+    int tlen = snprintf((char *)body + hlen + img_len, cap - hlen - img_len, "\r\n--%s--\r\n", boundary);
+    size_t total_len = hlen + img_len + tlen;
+
+    HttpRequest req;
+    memset(&req, 0, sizeof(req));
+    req.method = HTTP_METHOD_POST;
+    strncpy(req.path, "/api/capacity", sizeof(req.path) - 1);
+    strncpy(req.boundary, boundary, sizeof(req.boundary) - 1);
+    req.body = body;
+    req.body_len = total_len;
+    req.content_length = total_len;
+
+    HttpResponse res;
+    http_response_init(&res, 200, "application/json");
+    api_handle_request(&req, &res);
+    free(body);
+
+    bool ok = false;
+    if (res.status_code == 200 && res.body) {
+        const char *s = (const char *)res.body;
+        ok = (strstr(s, "\"success\":true") != NULL &&
+              strstr(s, "\"format\":\"PNG\"") != NULL);
+    }
+    http_response_free(&res);
+    return ok;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Test 20: Capacity API rejects invalid/non-image file with 400             */
+/* ------------------------------------------------------------------------- */
+static bool test_api_capacity_invalid_file(void) {
+    const char *boundary = "----CapInvBoundary12345";
+    const char *fake_text = "This is definitely not an image file.";
+    size_t fake_len = strlen(fake_text);
+
+    size_t cap = fake_len + 1024;
+    uint8_t *body = (uint8_t *)malloc(cap);
+    if (!body) return false;
+
+    int hlen = snprintf((char *)body, cap,
+        "--%s\r\nContent-Disposition: form-data; name=\"image\"; filename=\"text.txt\"\r\nContent-Type: text/plain\r\n\r\n", boundary);
+    memcpy(body + hlen, fake_text, fake_len);
+    int tlen = snprintf((char *)body + hlen + fake_len, cap - hlen - fake_len, "\r\n--%s--\r\n", boundary);
+    size_t total_len = hlen + fake_len + tlen;
+
+    HttpRequest req;
+    memset(&req, 0, sizeof(req));
+    req.method = HTTP_METHOD_POST;
+    strncpy(req.path, "/api/capacity", sizeof(req.path) - 1);
+    strncpy(req.boundary, boundary, sizeof(req.boundary) - 1);
+    req.body = body;
+    req.body_len = total_len;
+    req.content_length = total_len;
+
+    HttpResponse res;
+    http_response_init(&res, 200, "application/json");
+    api_handle_request(&req, &res);
+    free(body);
+
+    bool ok = (res.status_code == 400);
+    http_response_free(&res);
+    return ok;
+}
+
+/* ------------------------------------------------------------------------- */
 /* Main test runner                                                          */
 /* ------------------------------------------------------------------------- */
 int main(void) {
@@ -571,6 +746,10 @@ int main(void) {
     RUN_TEST(test_static_path_traversal_prevention);
     RUN_TEST(test_api_metadata_scan_with_gps);
     RUN_TEST(test_api_privacy_report_without_gps);
+    RUN_TEST(test_api_capacity_png);
+    RUN_TEST(test_api_capacity_jpeg);
+    RUN_TEST(test_api_capacity_cover_field);
+    RUN_TEST(test_api_capacity_invalid_file);
 
     if (g_enc_stego_png) {
         free(g_enc_stego_png);

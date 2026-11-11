@@ -119,6 +119,9 @@ static void handle_hide(const HttpRequest *req, HttpResponse *res) {
     if (!cover_part || !cover_part->data || cover_part->size == 0) {
         cover_part = multipart_get_part(form, "image");
     }
+    if (!cover_part || !cover_part->data || cover_part->size == 0) {
+        cover_part = multipart_get_part(form, "file");
+    }
 
     if (!cover_part || !cover_part->data || cover_part->size == 0) {
         multipart_free(form);
@@ -464,6 +467,20 @@ static void handle_capacity(const HttpRequest *req, HttpResponse *res) {
     if (!img_part || !img_part->data || img_part->size == 0) {
         img_part = multipart_get_part(form, "cover");
     }
+    if (!img_part || !img_part->data || img_part->size == 0) {
+        img_part = multipart_get_part(form, "file");
+    }
+    if (!img_part || !img_part->data || img_part->size == 0) {
+        img_part = multipart_get_part(form, "stego_image");
+    }
+    if (!img_part || !img_part->data || img_part->size == 0) {
+        for (size_t i = 0; i < form->count; i++) {
+            if (form->parts[i].data && form->parts[i].size > 0) {
+                img_part = &form->parts[i];
+                break;
+            }
+        }
+    }
 
     if (!img_part || !img_part->data || img_part->size == 0) {
         multipart_free(form);
@@ -484,6 +501,7 @@ static void handle_capacity(const HttpRequest *req, HttpResponse *res) {
     }
 
     char *esc_fmt = json_escape(result.format);
+    char *esc_mime = json_escape(result.mime_type);
     char *esc_orig = json_escape(result.original_mode);
     char *esc_norm = json_escape(result.normalized_mode);
     char *esc_env = json_escape(result.envelope_name);
@@ -491,13 +509,15 @@ static void handle_capacity(const HttpRequest *req, HttpResponse *res) {
 
     char json[2048];
     snprintf(json, sizeof(json),
-             "{\"success\":true,\"format\":\"%s\",\"original_mode\":\"%s\","
-             "\"normalized_mode\":\"%s\",\"width\":%u,\"height\":%u,\"channels\":%u,"
+             "{\"success\":true,\"format\":\"%s\",\"mime_type\":\"%s\",\"file_size\":%zu,"
+             "\"original_mode\":\"%s\",\"normalized_mode\":\"%s\",\"width\":%u,\"height\":%u,\"channels\":%u,"
              "\"was_converted\":%s,\"output_format\":\"PNG\","
              "\"unencrypted_capacity\":%zu,\"encrypted_capacity\":%zu,"
              "\"capacity_2bit\":%zu,\"capacity_3bit\":%zu,"
              "\"has_payload\":%s,\"envelope\":\"%s\",\"notice\":\"%s\"}",
              esc_fmt ? esc_fmt : "",
+             esc_mime ? esc_mime : "",
+             result.file_size,
              esc_orig ? esc_orig : "",
              esc_norm ? esc_norm : "",
              result.width, result.height, result.channels,
@@ -513,6 +533,7 @@ static void handle_capacity(const HttpRequest *req, HttpResponse *res) {
     http_response_set_json(res, 200, json);
 
     if (esc_fmt) free(esc_fmt);
+    if (esc_mime) free(esc_mime);
     if (esc_orig) free(esc_orig);
     if (esc_norm) free(esc_norm);
     if (esc_env) free(esc_env);

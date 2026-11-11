@@ -25,24 +25,43 @@ static const char *get_status_text(int code) {
     }
 }
 
+static const uint8_t *find_header_end(const uint8_t *data, size_t len, size_t *out_term_len) {
+    if (!data || len < 2) return NULL;
+    for (size_t i = 0; i + 1 < len; i++) {
+        if (i + 3 < len && data[i] == '\r' && data[i+1] == '\n' && data[i+2] == '\r' && data[i+3] == '\n') {
+            if (out_term_len) *out_term_len = 4;
+            return data + i;
+        }
+        if (data[i] == '\n' && data[i+1] == '\n') {
+            if (out_term_len) *out_term_len = 2;
+            return data + i;
+        }
+    }
+    return NULL;
+}
+
 int http_parse_request_headers(const uint8_t *raw_buf, size_t raw_len, HttpRequest *req, size_t *out_header_bytes) {
     if (!raw_buf || raw_len == 0 || !req) return -1;
     memset(req, 0, sizeof(HttpRequest));
 
-    /* Find end of headers \r\n\r\n or \n\n */
-    const char *buf = (const char *)raw_buf;
-    const char *hdr_end = strstr(buf, "\r\n\r\n");
-    size_t term_len = 4;
-    if (!hdr_end) {
-        hdr_end = strstr(buf, "\n\n");
-        term_len = 2;
-        if (!hdr_end) return -1; /* Incomplete headers */
-    }
+    /* Safely find end of headers \r\n\r\n or \n\n within raw_len bounds */
+    size_t term_len = 0;
+    const uint8_t *hdr_end_ptr = find_header_end(raw_buf, raw_len, &term_len);
+    if (!hdr_end_ptr) return -1; /* Incomplete headers */
 
-    size_t hdr_len = (hdr_end - buf);
+    size_t hdr_len = (size_t)(hdr_end_ptr - raw_buf);
     if (out_header_bytes) {
         *out_header_bytes = hdr_len + term_len;
     }
+
+    /* Safely copy headers into a null-terminated string */
+    char *hdr_copy = (char *)malloc(hdr_len + 1);
+    if (!hdr_copy) return -1;
+    memcpy(hdr_copy, raw_buf, hdr_len);
+    hdr_copy[hdr_len] = '\0';
+
+    const char *buf = hdr_copy;
+    const char *hdr_end = hdr_copy + hdr_len;
 
     /* Parse request line: METHOD PATH VERSION */
     char method_str[16] = {0};
@@ -50,6 +69,7 @@ int http_parse_request_headers(const uint8_t *raw_buf, size_t raw_len, HttpReque
     char version_str[32] = {0};
 
     if (sscanf(buf, "%15s %511s %31s", method_str, full_path, version_str) < 2) {
+        free(hdr_copy);
         return -1;
     }
 
@@ -68,6 +88,7 @@ int http_parse_request_headers(const uint8_t *raw_buf, size_t raw_len, HttpReque
 
     /* Security check on path: prevent traversal */
     if (strstr(req->path, "..") || strchr(req->path, '\\') || strstr(req->path, "%2e%2e") || strstr(req->path, "%2E%2E")) {
+        free(hdr_copy);
         return -1;
     }
 
@@ -120,6 +141,7 @@ int http_parse_request_headers(const uint8_t *raw_buf, size_t raw_len, HttpReque
         line = next_line ? next_line + 1 : NULL;
     }
 
+    free(hdr_copy);
     return 0;
 }
 

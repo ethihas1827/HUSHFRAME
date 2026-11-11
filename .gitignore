@@ -58,3 +58,9 @@ Thumbs.db
 .cache/
 .vscode/
 .idea/
+
+# Runtime and dependencies
+node_modules/
+*.tmp
+uploads/
+temp/

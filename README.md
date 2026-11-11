@@ -32,13 +32,28 @@ While traditional encryption protects files by scrambling them into unreadable g
 
 ## Quick Start
 
-### 1. Prerequisites
+### Mode 1: Instant Run (Zero Install — Recommended)
 
+No compiler, terminal, or background server required. Simply open `index.html` in any browser:
+
+1. Clone or download this repository.
+2. Double-click **`index.html`** in the repository root (or inside `frontend/index.html`).
+3. That's it! Hushframe runs 100% offline in your browser using hardware-accelerated Web Crypto, client-side Argon2id, and Canvas LSB processing.
+
+> **Privacy Guarantee**: All encryption, embedding, and image analysis execute entirely in local browser memory. Zero data, images, keys, or telemetry ever leave your machine.
+
+---
+
+### Mode 2: Native C Backend & CLI (High Performance)
+
+For maximum performance, multi-image split embedding, and terminal automation, compile the native C engine:
+
+#### 1. Prerequisites
 - **Windows**: [w64devkit](https://github.com/skeeto/w64devkit) or MSYS2 (GCC 64-bit and GNU Make).
 - **macOS**: Xcode Command Line Tools (`xcode-select --install`).
 - **Linux**: Standard build tools (`sudo apt install build-essential`).
 
-### 2. Build the Project
+#### 2. Build the Project
 
 Clone the repository and compile using `make`:
 
@@ -49,10 +64,10 @@ make
 ```
 
 This compiles:
-- `hushframe-server.exe` — Local web backend
+- `hushframe-server.exe` — Local web backend daemon (binds strictly to 127.0.0.1:8080)
 - `hushframe.exe` — Interactive Terminal UI (TUI) and Command Line Interface (CLI)
 
-### 3. Launch the Web Interface (Recommended)
+#### 3. Launch the Local Server
 
 Start the local server:
 ```powershell

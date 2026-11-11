@@ -67,6 +67,34 @@ function revokeAllBlobUrls() {
   }
 }
 
+/**
+ * Universal Dual-Mode API Dispatcher
+ * Seamlessly routes requests to native C server (if running) or in-browser StegoEngine (offline).
+ */
+async function apiCall(endpoint, formData) {
+  // If running via file:/// or StegoEngine standalone mode, route directly to in-browser engine
+  if (typeof window !== 'undefined' && (window.location.protocol === 'file:' || (window.StegoEngine && window.StegoEngine.isStandalone()))) {
+    if (window.StegoEngine) {
+      return await window.StegoEngine.handleRequest(endpoint, formData);
+    }
+  }
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      body: formData
+    });
+    return await res.json();
+  } catch (err) {
+    // If native backend is unreachable, gracefully fallback to in-browser engine!
+    if (window.StegoEngine) {
+      window.StegoEngine.setMode('standalone');
+      return await window.StegoEngine.handleRequest(endpoint, formData);
+    }
+    throw err;
+  }
+}
+
 // DOM Ready initialization
 document.addEventListener('DOMContentLoaded', () => {
   initTheme();
@@ -354,50 +382,162 @@ function formatBytes(bytes) {
 }
 
 /* ==========================================================================
+   Image Format & Magic Byte Verification
+   ========================================================================== */
+
+function detectImageMagicBytes(bytes) {
+  if (!bytes || bytes.length < 2) return null;
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (bytes.length >= 8 &&
+      bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 &&
+      bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A) {
+    return { format: 'PNG', mime: 'image/png', ext: 'png' };
+  }
+  // JPEG: FF D8 FF
+  if (bytes.length >= 3 &&
+      bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
+    return { format: 'JPEG', mime: 'image/jpeg', ext: 'jpg' };
+  }
+  // BMP: 42 4D ("BM")
+  if (bytes.length >= 2 && bytes[0] === 0x42 && bytes[1] === 0x4D) {
+    return { format: 'BMP', mime: 'image/bmp', ext: 'bmp' };
+  }
+  // WebP: RIFF .... WEBP
+  if (bytes.length >= 12 &&
+      bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) {
+    return { format: 'WEBP', mime: 'image/webp', ext: 'webp' };
+  }
+  // GIF: GIF87a or GIF89a
+  if (bytes.length >= 6 &&
+      bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38 &&
+      (bytes[4] === 0x37 || bytes[4] === 0x39) && bytes[5] === 0x61) {
+    return { format: 'GIF', mime: 'image/gif', ext: 'gif' };
+  }
+  return null;
+}
+
+/* ==========================================================================
    Tab 1: Protect File Flow & State Reset
    ========================================================================== */
 
-function handleHideImageSelect(file) {
+async function handleHideImageSelect(file) {
+  if (!file) return;
+
+  if (file.size === 0) {
+    showAlert('danger', 'The selected file is empty (0 bytes). Please select a valid image.');
+    resetHideImage();
+    return;
+  }
+
+  // Detect image type from magic bytes
+  let detected = null;
+  try {
+    const slice = file.slice(0, 16);
+    const buffer = await slice.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    detected = detectImageMagicBytes(bytes);
+  } catch (err) {
+    showAlert('danger', 'Failed to inspect file header: ' + err.message);
+    resetHideImage();
+    return;
+  }
+
+  if (!detected) {
+    showAlert('danger', 'The selected file is not a supported image format. Select a valid PNG, JPEG, BMP, or WEBP image.');
+    resetHideImage();
+    return;
+  }
+
   state.hide.coverFile = file;
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    document.getElementById('hideThumb').src = e.target.result;
-    document.getElementById('hideMetaName').textContent = file.name;
-    document.getElementById('hideDropzone').classList.add('hidden');
-    document.getElementById('hideImageMeta').classList.remove('hidden');
+  // Display initial file info immediately
+  const nameEl = document.getElementById('hideMetaName');
+  if (nameEl) nameEl.textContent = file.name;
 
-    // Query server for carrier capacity and format details
-    queryImageCapacity(file, (info) => {
+  const sizeEl = document.getElementById('hideMetaSize');
+  if (sizeEl) sizeEl.textContent = formatBytes(file.size);
+
+  const fmtEl = document.getElementById('hideMetaFormat');
+  if (fmtEl) fmtEl.textContent = detected.mime;
+
+  const dimEl = document.getElementById('hideMetaDim');
+  if (dimEl) dimEl.textContent = 'Calculating...';
+
+  const capEl = document.getElementById('hideMetaCap');
+  if (capEl) capEl.textContent = 'Calculating capacity...';
+
+  const noticeEl = document.getElementById('hideMetaNotice');
+  if (noticeEl) {
+    noticeEl.textContent = '';
+    noticeEl.classList.add('hidden');
+  }
+
+  // Load preview thumbnail
+  const thumb = document.getElementById('hideThumb');
+  if (thumb) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      thumb.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  document.getElementById('hideDropzone')?.classList.add('hidden');
+  document.getElementById('hideImageMeta')?.classList.remove('hidden');
+
+  // Query server for carrier capacity and format details
+  queryImageCapacity(
+    file,
+    (info) => {
       state.hide.coverWidth = info.width || 0;
       state.hide.coverHeight = info.height || 0;
       state.hide.cap1Bit = info.encrypted_capacity || 0;
       state.hide.cap2Bit = info.capacity_2bit || (state.hide.cap1Bit * 2);
       state.hide.cap3Bit = info.capacity_3bit || (state.hide.cap1Bit * 3);
 
-      document.getElementById('hideMetaDim').textContent = `${info.width} x ${info.height} px`;
-      document.getElementById('hideMetaFormat').textContent = info.format || 'Image';
-      document.getElementById('hideMetaCap').textContent = `Max Secret: ${formatBytes(info.encrypted_capacity || 0)}`;
+      if (dimEl) dimEl.textContent = `${info.width} \u00d7 ${info.height} px`;
+      if (fmtEl) fmtEl.textContent = info.mime_type || detected.mime;
+      if (sizeEl && info.file_size) sizeEl.textContent = formatBytes(info.file_size);
+      if (capEl) capEl.textContent = `Capacity: ${formatBytes(info.encrypted_capacity || 0)}`;
 
-      const noticeEl = document.getElementById('hideMetaNotice');
-      if (info.notice && info.notice.length > 0) {
-        noticeEl.textContent = info.notice;
-        noticeEl.classList.remove('hidden');
-      } else {
-        noticeEl.classList.add('hidden');
+      if (noticeEl) {
+        if (info.notice && info.notice.length > 0) {
+          noticeEl.textContent = info.notice;
+          noticeEl.classList.remove('hidden');
+        } else {
+          noticeEl.classList.add('hidden');
+        }
       }
 
+      validateHideForm();
       evaluateHideCapacity();
-    });
+    },
+    (errMsg) => {
+      showAlert('danger', errMsg || 'Failed to inspect carrier image.');
+      resetHideImage();
+    }
+  );
 
-    validateHideForm();
-    evaluateHideCapacity();
-  };
-  reader.readAsDataURL(file);
+  validateHideForm();
+  evaluateHideCapacity();
 }
 
 function resetHideImage() {
   state.hide.coverFile = null;
+  const sizeEl = document.getElementById('hideMetaSize');
+  if (sizeEl) sizeEl.textContent = '0 KB';
+  const dimEl = document.getElementById('hideMetaDim');
+  if (dimEl) dimEl.textContent = '0 \u00d7 0 px';
+  const fmtEl = document.getElementById('hideMetaFormat');
+  if (fmtEl) fmtEl.textContent = 'image/png';
+  const capEl = document.getElementById('hideMetaCap');
+  if (capEl) capEl.textContent = 'Capacity: 0 KB';
+  const noticeEl = document.getElementById('hideMetaNotice');
+  if (noticeEl) {
+    noticeEl.textContent = '';
+    noticeEl.classList.add('hidden');
+  }
   state.hide.coverWidth = 0;
   state.hide.coverHeight = 0;
   state.hide.cap1Bit = 0;
@@ -405,8 +545,10 @@ function resetHideImage() {
   state.hide.cap3Bit = 0;
   const input = document.getElementById('hideImageInput');
   if (input) input.value = '';
-  document.getElementById('hideDropzone').classList.remove('hidden');
-  document.getElementById('hideImageMeta').classList.add('hidden');
+  const thumb = document.getElementById('hideThumb');
+  if (thumb) thumb.src = '';
+  document.getElementById('hideDropzone')?.classList.remove('hidden');
+  document.getElementById('hideImageMeta')?.classList.add('hidden');
   document.getElementById('hideCapacityMeterBox')?.classList.add('hidden');
   document.getElementById('capacityShortfallCard')?.classList.add('hidden');
   validateHideForm();
@@ -508,12 +650,7 @@ async function executeHideRequest() {
   }
 
   try {
-    const res = await fetch('/api/hide', {
-      method: 'POST',
-      body: formData
-    });
-
-    const json = await res.json();
+    const json = await apiCall('/api/hide', formData);
     progress.classList.add('hidden');
 
     if (!json.success) {
@@ -613,6 +750,19 @@ function resetHideForm(preserveCover = false) {
     if (hideThumb) hideThumb.src = '';
     const hideMetaName = document.getElementById('hideMetaName');
     if (hideMetaName) hideMetaName.textContent = '';
+    const sizeEl = document.getElementById('hideMetaSize');
+    if (sizeEl) sizeEl.textContent = '0 KB';
+    const dimEl = document.getElementById('hideMetaDim');
+    if (dimEl) dimEl.textContent = '0 \u00d7 0 px';
+    const fmtEl = document.getElementById('hideMetaFormat');
+    if (fmtEl) fmtEl.textContent = 'image/png';
+    const capEl = document.getElementById('hideMetaCap');
+    if (capEl) capEl.textContent = 'Capacity: 0 KB';
+    state.hide.coverWidth = 0;
+    state.hide.coverHeight = 0;
+    state.hide.cap1Bit = 0;
+    state.hide.cap2Bit = 0;
+    state.hide.cap3Bit = 0;
     const hideDropzone = document.getElementById('hideDropzone');
     if (hideDropzone) hideDropzone.classList.remove('hidden');
     const hideImageMeta = document.getElementById('hideImageMeta');
@@ -721,12 +871,7 @@ async function submitRevealSecret() {
   }
 
   try {
-    const res = await fetch('/api/reveal', {
-      method: 'POST',
-      body: formData
-    });
-
-    const json = await res.json();
+    const json = await apiCall('/api/reveal', formData);
     progress.classList.add('hidden');
 
     if (!json.success) {
@@ -734,7 +879,7 @@ async function submitRevealSecret() {
       const revPassInput = document.getElementById('revealPassword');
       if (revPassInput) revPassInput.value = '';
       let errMsg = json.error || Terminology.ERR_WRONG_PASSWORD;
-      if (res.status === 401 || (json.error && (/password|auth|tamper|corrupt/i).test(json.error))) {
+      if (json.error && (/password|auth|tamper|corrupt/i).test(json.error)) {
         errMsg = Terminology.ERR_WRONG_PASSWORD;
       }
       showAlert('danger', errMsg);
@@ -935,12 +1080,7 @@ async function submitVerifyImage() {
   formData.append('image', state.verify.imageFile);
 
   try {
-    const res = await fetch('/api/verify', {
-      method: 'POST',
-      body: formData
-    });
-
-    const json = await res.json();
+    const json = await apiCall('/api/verify', formData);
     btn.disabled = false;
 
     if (!json.success) {
@@ -985,6 +1125,8 @@ function handleCapImageSelect(file) {
   reader.onload = (e) => {
     document.getElementById('capThumb').src = e.target.result;
     document.getElementById('capMetaName').textContent = file.name;
+    const sizeEl = document.getElementById('capMetaSize');
+    if (sizeEl) sizeEl.textContent = formatBytes(file.size);
     document.getElementById('capDropzone').classList.add('hidden');
     document.getElementById('capImageMeta').classList.remove('hidden');
     document.getElementById('btnCheckCapacity').disabled = false;
@@ -1012,12 +1154,7 @@ async function submitCheckCapacity() {
   formData.append('image', state.capacity.imageFile);
 
   try {
-    const res = await fetch('/api/capacity', {
-      method: 'POST',
-      body: formData
-    });
-
-    const json = await res.json();
+    const json = await apiCall('/api/capacity', formData);
     btn.disabled = false;
 
     if (!json.success) {
@@ -1046,21 +1183,20 @@ async function submitCheckCapacity() {
   }
 }
 
-async function queryImageCapacity(file, callback) {
+async function queryImageCapacity(file, onSuccess, onError) {
   const formData = new FormData();
-  formData.append('image', file);
+  formData.append('image', file, file.name || 'carrier.png');
+  formData.append('cover', file, file.name || 'carrier.png');
 
   try {
-    const res = await fetch('/api/capacity', {
-      method: 'POST',
-      body: formData
-    });
-    const json = await res.json();
-    if (json.success && callback) {
-      callback(json);
+    const json = await apiCall('/api/capacity', formData);
+    if (json.success) {
+      if (onSuccess) onSuccess(json);
+    } else {
+      if (onError) onError(json.error || 'Failed to calculate image capacity.');
     }
   } catch (e) {
-    // Silent capacity pre-check
+    if (onError) onError('Could not calculate image capacity.');
   }
 }
 
@@ -1457,12 +1593,7 @@ async function submitSplitHide() {
 
   try {
     label.textContent = 'Encrypting chunks and embedding in images...';
-    const res = await fetch('/api/split-hide', {
-      method: 'POST',
-      body: formData
-    });
-
-    const json = await res.json();
+    const json = await apiCall('/api/split-hide', formData);
     progress.classList.add('hidden');
     btn.disabled = false;
 
@@ -1633,12 +1764,7 @@ async function submitSplitReveal() {
   }
 
   try {
-    const res = await fetch('/api/split-reveal', {
-      method: 'POST',
-      body: formData
-    });
-
-    const json = await res.json();
+    const json = await apiCall('/api/split-reveal', formData);
     progress.classList.add('hidden');
     btn.disabled = false;
 
@@ -1646,7 +1772,7 @@ async function submitSplitReveal() {
       const splitPassInput = document.getElementById('splitRevPassword');
       if (splitPassInput) splitPassInput.value = '';
       let errMsg = json.error || Terminology.ERR_WRONG_PASSWORD;
-      if (res.status === 401 || (json.error && (/password|auth|tamper|corrupt/i).test(json.error))) {
+      if (json.error && (/password|auth|tamper|corrupt/i).test(json.error)) {
         errMsg = Terminology.ERR_WRONG_PASSWORD;
       }
       showAlert('danger', errMsg);
@@ -1772,12 +1898,7 @@ async function submitScanPrivacy() {
   formData.append('image', state.privacy.imageFile);
 
   try {
-    const res = await fetch('/api/metadata-scan', {
-      method: 'POST',
-      body: formData
-    });
-
-    const json = await res.json();
+    const json = await apiCall('/api/metadata-scan', formData);
     btn.disabled = false;
 
     if (!json.success) {
@@ -1912,12 +2033,7 @@ async function submitStripMetadata() {
   formData.append('image', state.privacy.imageFile);
 
   try {
-    const res = await fetch('/api/metadata-strip', {
-      method: 'POST',
-      body: formData
-    });
-
-    const json = await res.json();
+    const json = await apiCall('/api/metadata-strip', formData);
     if (btn) btn.disabled = false;
     if (btnLoc) btnLoc.disabled = false;
 

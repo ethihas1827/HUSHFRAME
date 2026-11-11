@@ -100,6 +100,8 @@ typedef struct {
 
 typedef struct {
     char format[32];
+    char mime_type[64];
+    size_t file_size;
     char original_mode[64];
     char normalized_mode[64];
     uint32_t width;
