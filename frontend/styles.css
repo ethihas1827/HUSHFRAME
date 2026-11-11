@@ -2516,9 +2516,49 @@ button, input, textarea, select {
 }
 
 .activity-table .col-status {
+  width: 105px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.activity-table .col-download {
   width: 110px;
   text-align: right;
   white-space: nowrap;
+}
+
+.btn-activity-download {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  background-color: var(--accent-soft-bg);
+  color: var(--accent-soft-text);
+  border: 1px solid var(--accent-soft-border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-activity-download:hover {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  border-color: var(--accent-primary);
+  box-shadow: 0 1px 3px rgba(79, 70, 229, 0.25);
+}
+
+[data-theme="dark"] .btn-activity-download {
+  background-color: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+[data-theme="dark"] .btn-activity-download:hover {
+  background-color: var(--accent-primary);
+  color: #ffffff;
+  border-color: var(--accent-primary);
 }
 
 /* Timestamp format */

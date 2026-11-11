@@ -697,9 +697,17 @@ async function executeHideRequest() {
     state.hide.isProtected = !!json.is_protected;
     state.hide.coverName = state.hide.coverFile ? state.hide.coverFile.name : 'cover.png';
 
-    // Record activity immediately upon successful protection
+    // Record activity immediately upon successful protection with downloadable image blob
     if (typeof HistoryManager !== 'undefined') {
-      HistoryManager.record(Terminology.BTN_PROTECT_FILE, state.hide.coverName, state.hide.downloadFilename, state.hide.isProtected);
+      HistoryManager.record(
+        Terminology.BTN_PROTECT_FILE,
+        state.hide.coverName,
+        state.hide.downloadFilename,
+        state.hide.isProtected,
+        '',
+        blob,
+        state.hide.downloadFilename
+      );
     }
 
     resultCard.classList.remove('hidden');
@@ -914,13 +922,16 @@ async function submitRevealSecret() {
       state.reveal.isProtected = !!json.is_protected;
       state.reveal.stegoName = state.reveal.stegoFile ? state.reveal.stegoFile.name : 'protected_image.png';
 
-      // Record activity immediately upon successful file recovery
+      // Record activity immediately upon successful file recovery with downloadable blob
       if (typeof HistoryManager !== 'undefined') {
         HistoryManager.record(
           Terminology.BTN_RECOVER_FILE,
           state.reveal.stegoName,
           state.reveal.downloadFilename,
-          state.reveal.isProtected
+          state.reveal.isProtected,
+          '',
+          blob,
+          state.reveal.downloadFilename
         );
       }
 
@@ -934,13 +945,17 @@ async function submitRevealSecret() {
       const textEl = document.getElementById('revealResultText');
       if (textEl) textEl.value = json.text || '';
 
-      // Record activity immediately upon successful text recovery
+      // Record activity immediately upon successful text recovery with text blob
       if (typeof HistoryManager !== 'undefined') {
+        const textBlob = new Blob([json.text || ''], { type: 'text/plain;charset=utf-8' });
         HistoryManager.record(
           Terminology.BTN_RECOVER_FILE,
           state.reveal.stegoFile ? state.reveal.stegoFile.name : 'protected_image.png',
           Terminology.CONTENT_TEXT,
-          json.is_protected
+          json.is_protected,
+          '',
+          textBlob,
+          'recovered_message.txt'
         );
       }
     }
@@ -2086,7 +2101,7 @@ async function submitStripMetadata() {
 
     if (typeof HistoryManager !== 'undefined') {
       const inputDesc = state.privacy.imageFile ? state.privacy.imageFile.name : 'image.jpg';
-      HistoryManager.record('Remove metadata', inputDesc, state.privacy.cleanFilename, false);
+      HistoryManager.record('Remove metadata', inputDesc, state.privacy.cleanFilename, false, '', blob, state.privacy.cleanFilename);
     }
 
     const noticeEl = document.getElementById('privCleanNotice');
@@ -2122,6 +2137,110 @@ function downloadCleanImage() {
     goHome();
   }, 400);
 }
+
+/* ==========================================================================
+   Activity Download Cache (Client-Side Memory & IndexedDB Storage)
+   ========================================================================== */
+
+const ActivityDownloadCache = {
+  _cache: new Map(),
+
+  save(id, blob, filename) {
+    if (!id || !blob) return;
+    this._cache.set(id, { blob, filename });
+    this._persistToIndexedDB(id, blob, filename);
+  },
+
+  has(id) {
+    return this._cache.has(id);
+  },
+
+  async download(id) {
+    let item = this._cache.get(id);
+    if (!item) {
+      item = await this._getFromIndexedDB(id);
+    }
+    if (!item || !item.blob) {
+      showAlert('info', 'File is no longer available in browser memory. Please re-run the operation.');
+      return;
+    }
+
+    const url = URL.createObjectURL(item.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = item.filename || 'download.png';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1500);
+    showAlert('success', `Downloading ${item.filename || 'file'}...`);
+  },
+
+  _dbPromise: null,
+  _getDb() {
+    if (this._dbPromise) return this._dbPromise;
+    this._dbPromise = new Promise((resolve) => {
+      if (typeof indexedDB === 'undefined') return resolve(null);
+      try {
+        const req = indexedDB.open('hushframe_activity_downloads', 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains('files')) {
+            db.createObjectStore('files', { keyPath: 'id' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
+    });
+    return this._dbPromise;
+  },
+
+  async _persistToIndexedDB(id, blob, filename) {
+    const db = await this._getDb();
+    if (!db) return;
+    try {
+      const tx = db.transaction('files', 'readwrite');
+      const store = tx.objectStore('files');
+      store.put({ id, blob, filename, time: Date.now() });
+    } catch (_) {}
+  },
+
+  async _getFromIndexedDB(id) {
+    const db = await this._getDb();
+    if (!db) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction('files', 'readonly');
+        const store = tx.objectStore('files');
+        const req = store.get(id);
+        req.onsuccess = () => {
+          if (req.result && req.result.blob) {
+            this._cache.set(id, { blob: req.result.blob, filename: req.result.filename });
+            resolve(req.result);
+          } else {
+            resolve(null);
+          }
+        };
+        req.onerror = () => resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
+    });
+  },
+
+  async clear() {
+    this._cache.clear();
+    const db = await this._getDb();
+    if (!db) return;
+    try {
+      const tx = db.transaction('files', 'readwrite');
+      tx.objectStore('files').clear();
+    } catch (_) {}
+  }
+};
 
 /* ==========================================================================
    Recent Activity History (100% Client-Side LocalStorage)
@@ -2166,18 +2285,27 @@ const HistoryManager = {
     }
   },
 
-  record(action, inputName, outputName, isProtected, note = '') {
+  record(action, inputName, outputName, isProtected, note = '', downloadBlob = null, downloadFilename = '') {
     if (!this.isEnabled()) return;
     const items = this.getAll();
+    const entryId = Date.now() + Math.random().toString(36).substring(2, 7);
+    const hasDownload = Boolean(downloadBlob && downloadFilename);
+
+    if (hasDownload && typeof ActivityDownloadCache !== 'undefined') {
+      ActivityDownloadCache.save(entryId, downloadBlob, downloadFilename);
+    }
+
     const entry = {
-      id: Date.now() + Math.random().toString(36).substring(2, 7),
+      id: entryId,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       date: new Date().toLocaleDateString(),
       action,
       inputName: inputName || '—',
       outputName: outputName || '—',
       isProtected: !!isProtected,
-      note: note || ''
+      note: note || '',
+      hasDownload: hasDownload,
+      downloadFilename: downloadFilename || ''
     };
     items.unshift(entry);
     if (items.length > 50) items.pop();
@@ -2190,6 +2318,9 @@ const HistoryManager = {
   clear() {
     try {
       localStorage.removeItem(this.STORAGE_KEY);
+      if (typeof ActivityDownloadCache !== 'undefined') {
+        ActivityDownloadCache.clear();
+      }
     } catch (e) {}
     this.render();
   },
@@ -2276,6 +2407,21 @@ const HistoryManager = {
       const inputVal = item.inputName || '—';
       const outputVal = item.outputName || '—';
 
+      let downloadCell = '<span style="color: var(--text-dim); text-align: right; display: block;">—</span>';
+      if (item.hasDownload || (typeof ActivityDownloadCache !== 'undefined' && ActivityDownloadCache.has(item.id))) {
+        const dlName = escapeHtml(item.downloadFilename || outputVal || 'download.png');
+        downloadCell = `
+          <button type="button" class="btn-activity-download" onclick="ActivityDownloadCache.download('${escapeHtml(item.id)}')" title="Download ${dlName}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Download</span>
+          </button>
+        `;
+      }
+
       tr.innerHTML = `
         <td class="col-timestamp">
           <div class="activity-time-wrap">
@@ -2299,6 +2445,9 @@ const HistoryManager = {
           <span class="badge ${item.isProtected ? 'badge-protected' : 'badge-unprotected'}">
             ${item.isProtected ? 'Protected' : 'Unprotected'}
           </span>
+        </td>
+        <td class="col-download">
+          ${downloadCell}
         </td>
       `;
       tbody.appendChild(tr);
