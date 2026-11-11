@@ -1909,7 +1909,34 @@ async function submitScanPrivacy() {
 
     state.privacy.scanResult = json;
 
-    const risk = (json.privacyRisk || (json.risk_level ? json.risk_level.toLowerCase() : 'low')).toLowerCase();
+    let hasGps = Boolean(json.hasGps || json.has_gps);
+    let lat = 0, lon = 0;
+    let latRef = 'N', lonRef = 'E';
+    let alt = null;
+    let time = null;
+
+    if (hasGps) {
+      const gps = json.gps || {};
+      lat = (typeof gps.latitude === 'number') ? gps.latitude : (typeof json.latitude === 'number' ? json.latitude : (parseFloat(json.latitude) || 0));
+      lon = (typeof gps.longitude === 'number') ? gps.longitude : (typeof json.longitude === 'number' ? json.longitude : (parseFloat(json.longitude) || 0));
+
+      // Coordinate validation: must be valid non-zero geolocation
+      if (Math.abs(lat) <= 0.000001 && Math.abs(lon) <= 0.000001) {
+        hasGps = false;
+      } else {
+        latRef = gps.latitudeRef || json.latitude_ref || (lat >= 0 ? 'N' : 'S');
+        lonRef = gps.longitudeRef || json.longitude_ref || (lon >= 0 ? 'E' : 'W');
+        alt = (gps.altitude != null) ? gps.altitude : (json.has_altitude ? json.altitude : null);
+        time = gps.timestamp || json.gps_timestamp || json.datetime || null;
+      }
+    }
+
+    let risk = (json.privacyRisk || (json.risk_level ? json.risk_level.toLowerCase() : 'low')).toLowerCase();
+    if (!hasGps && risk === 'high') {
+      const hasOther = Boolean(json.has_camera_info || json.has_exif || json.camera_make || json.camera_model || json.datetime || json.software);
+      risk = hasOther ? 'medium' : 'low';
+    }
+
     const badge = document.getElementById('privRiskBadge');
     badge.className = 'badge-risk';
     if (risk === 'high') {
@@ -1929,26 +1956,12 @@ async function submitScanPrivacy() {
       'No sensitive geolocation or device metadata detected.'
     );
 
-    const hasGps = Boolean(json.hasGps || json.has_gps);
     const locSection = document.getElementById('privLocationSection');
     const noGpsNotice = document.getElementById('privNoGpsNotice');
 
-    let lat = 0, lon = 0;
-    let latRef = 'N', lonRef = 'E';
-    let alt = null;
-    let time = null;
-
     if (hasGps) {
-      const gps = json.gps || {};
-      lat = (typeof gps.latitude === 'number') ? gps.latitude : (json.latitude || 0);
-      lon = (typeof gps.longitude === 'number') ? gps.longitude : (json.longitude || 0);
-      latRef = gps.latitudeRef || json.latitude_ref || (lat >= 0 ? 'N' : 'S');
-      lonRef = gps.longitudeRef || json.longitude_ref || (lon >= 0 ? 'E' : 'W');
-      alt = (gps.altitude != null) ? gps.altitude : (json.has_altitude ? json.altitude : null);
-      time = gps.timestamp || json.gps_timestamp || json.datetime || null;
-
-      document.getElementById('privGpsLat').textContent = `${Math.abs(lat).toFixed(6)}° ${latRef}`;
-      document.getElementById('privGpsLon').textContent = `${Math.abs(lon).toFixed(6)}° ${lonRef}`;
+      document.getElementById('privGpsLat').textContent = `${Math.abs(lat).toFixed(6)}\u00B0 ${latRef}`;
+      document.getElementById('privGpsLon').textContent = `${Math.abs(lon).toFixed(6)}\u00B0 ${lonRef}`;
 
       const altWrap = document.getElementById('privAltWrap');
       if (alt != null) {

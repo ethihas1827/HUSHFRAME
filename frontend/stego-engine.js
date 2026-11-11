@@ -439,7 +439,11 @@
   /* ========================================================================= */
   /* Canvas Image Loading & Pixel Operations                                  */
   /* ========================================================================= */
-  function fileToUint8Array(file) {
+  async function fileToUint8Array(file) {
+    if (file && typeof file.arrayBuffer === 'function') {
+      const buf = await file.arrayBuffer();
+      return new Uint8Array(buf);
+    }
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(new Uint8Array(reader.result));
@@ -559,123 +563,383 @@
   }
 
   /* ========================================================================= */
-  /* Structure-Aware JPEG Metadata Scanning & Stripping (Privacy Tab)          */
+  /* Structure-Aware Metadata Scanning & Stripping (Privacy Tab)               */
+  /* Mirrors src/metadata.c and backend/api.c bit-for-bit                     */
   /* ========================================================================= */
-  function scanJpegMetadata(bytes) {
+  function getTiffRational(view, offset, isLe) {
+    if (offset + 8 > view.byteLength) return null;
+    const num = view.getUint32(offset, isLe);
+    const den = view.getUint32(offset + 4, isLe);
+    if (den === 0) return null;
+    return num / den;
+  }
+
+  function getTiffString(tiff, offset, count) {
+    if (offset >= tiff.length) return '';
+    const len = Math.min(count, tiff.length - offset);
+    const sub = tiff.subarray(offset, offset + len);
+    return new TextDecoder().decode(sub).replace(/\0/g, '').trim();
+  }
+
+  function parseTextGps(data, info) {
+    if (!data || data.length < 16 || info.has_gps) return;
+    try {
+      const str = new TextDecoder().decode(data);
+      const m = str.match(/GPS\s+([0-9.]+)\s+([NSns])\s+([0-9.]+)\s+([EWew])/);
+      if (m) {
+        const lat = parseFloat(m[1]);
+        const lref = m[2].toUpperCase();
+        const lon = parseFloat(m[3]);
+        const wref = m[4].toUpperCase();
+        if ((Math.abs(lat) > 0.000001 || Math.abs(lon) > 0.000001) &&
+            lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+          info.has_gps = true;
+          info.latitude = (lref === 'S') ? -Math.abs(lat) : Math.abs(lat);
+          info.longitude = (wref === 'W') ? -Math.abs(lon) : Math.abs(lon);
+          info.latitude_ref = lref;
+          info.longitude_ref = wref;
+        }
+      }
+    } catch (e) {}
+  }
+
+  function parseTiffExif(tiff, info) {
+    if (!tiff || tiff.length < 8) return false;
+
+    let isLe = false;
+    if (tiff[0] === 0x49 && tiff[1] === 0x49) {
+      isLe = true;
+    } else if (tiff[0] === 0x4D && tiff[1] === 0x4D) {
+      isLe = false;
+    } else {
+      return false;
+    }
+
+    const view = new DataView(tiff.buffer, tiff.byteOffset, tiff.byteLength);
+    const magic = view.getUint16(2, isLe);
+    if (magic !== 42) return false;
+
+    const ifd0Offset = view.getUint32(4, isLe);
+    if (ifd0Offset < 8 || ifd0Offset + 2 > tiff.length) return false;
+
+    info.has_exif = true;
+    let numEntries = view.getUint16(ifd0Offset, isLe);
+    if (ifd0Offset + 2 + numEntries * 12 > tiff.length) {
+      numEntries = Math.floor((tiff.length - (ifd0Offset + 2)) / 12);
+    }
+
+    let gpsOffset = 0;
+    let exifOffset = 0;
+
+    for (let i = 0; i < numEntries; i++) {
+      const e = ifd0Offset + 2 + i * 12;
+      if (e + 12 > tiff.length) break;
+
+      const tag = view.getUint16(e, isLe);
+      const type = view.getUint16(e + 2, isLe);
+      const count = view.getUint32(e + 4, isLe);
+
+      let valOffset = null;
+      if (count <= 4 && type <= 4) {
+        valOffset = e + 8;
+      } else {
+        const off = view.getUint32(e + 8, isLe);
+        if (off < tiff.length) valOffset = off;
+      }
+
+      if (tag === 0x010F && valOffset !== null && type === 2) {
+        info.has_camera_info = true;
+        info.camera_make = getTiffString(tiff, valOffset, count);
+      } else if (tag === 0x0110 && valOffset !== null && type === 2) {
+        info.has_camera_info = true;
+        info.camera_model = getTiffString(tiff, valOffset, count);
+      } else if (tag === 0x0131 && valOffset !== null && type === 2) {
+        info.software = getTiffString(tiff, valOffset, count);
+      } else if (tag === 0x0132 && valOffset !== null && type === 2) {
+        info.datetime = getTiffString(tiff, valOffset, count);
+      } else if (tag === 0x8825) {
+        gpsOffset = view.getUint32(e + 8, isLe);
+      } else if (tag === 0x8769) {
+        exifOffset = view.getUint32(e + 8, isLe);
+      }
+    }
+
+    if (exifOffset > 0 && exifOffset + 2 <= tiff.length && !info.datetime) {
+      let exifEntries = view.getUint16(exifOffset, isLe);
+      if (exifOffset + 2 + exifEntries * 12 > tiff.length) {
+        exifEntries = Math.floor((tiff.length - (exifOffset + 2)) / 12);
+      }
+      for (let k = 0; k < exifEntries; k++) {
+        const e = exifOffset + 2 + k * 12;
+        if (e + 12 > tiff.length) break;
+        const tag = view.getUint16(e, isLe);
+        const count = view.getUint32(e + 4, isLe);
+        if (tag === 0x9003 || tag === 0x9004) {
+          const off = view.getUint32(e + 8, isLe);
+          if (off < tiff.length) {
+            info.datetime = getTiffString(tiff, off, count);
+            break;
+          }
+        }
+      }
+    }
+
+    if (gpsOffset > 0 && gpsOffset + 2 <= tiff.length) {
+      let gpsEntries = view.getUint16(gpsOffset, isLe);
+      if (gpsOffset + 2 + gpsEntries * 12 > tiff.length) {
+        gpsEntries = Math.floor((tiff.length - (gpsOffset + 2)) / 12);
+      }
+
+      let hasLat = false, hasLon = false;
+      let latRef = 'N', lonRef = 'E';
+      let rawLat = 0.0, rawLon = 0.0;
+      let altitude = 0.0, hasAlt = false, altRef = 0;
+      let gpsDate = '', hasTime = false, gpsTime = [0, 0, 0];
+
+      for (let j = 0; j < gpsEntries; j++) {
+        const e = gpsOffset + 2 + j * 12;
+        if (e + 12 > tiff.length) break;
+
+        const tag = view.getUint16(e, isLe);
+        const type = view.getUint16(e + 2, isLe);
+        const count = view.getUint32(e + 4, isLe);
+
+        if (tag === 0x0001) {
+          let c = String.fromCharCode(tiff[e + 8]);
+          if (c !== 'N' && c !== 'S') {
+            const off = view.getUint32(e + 8, isLe);
+            if (off < tiff.length) c = String.fromCharCode(tiff[off]);
+          }
+          if (c === 'S' || c === 's' || c === 'N' || c === 'n') latRef = c.toUpperCase();
+        } else if (tag === 0x0002) {
+          if (type === 5 && count >= 3) {
+            const off = view.getUint32(e + 8, isLe);
+            if (off + 24 <= tiff.length) {
+              const d = getTiffRational(view, off, isLe);
+              const m = getTiffRational(view, off + 8, isLe);
+              const s = getTiffRational(view, off + 16, isLe);
+              if (d !== null && m !== null && s !== null && d >= 0 && m >= 0 && m < 60 && s >= 0 && s < 60) {
+                rawLat = d + (m / 60.0) + (s / 3600.0);
+                hasLat = true;
+              }
+            }
+          }
+        } else if (tag === 0x0003) {
+          let c = String.fromCharCode(tiff[e + 8]);
+          if (c !== 'E' && c !== 'W') {
+            const off = view.getUint32(e + 8, isLe);
+            if (off < tiff.length) c = String.fromCharCode(tiff[off]);
+          }
+          if (c === 'W' || c === 'w' || c === 'E' || c === 'e') lonRef = c.toUpperCase();
+        } else if (tag === 0x0004) {
+          if (type === 5 && count >= 3) {
+            const off = view.getUint32(e + 8, isLe);
+            if (off + 24 <= tiff.length) {
+              const d = getTiffRational(view, off, isLe);
+              const m = getTiffRational(view, off + 8, isLe);
+              const s = getTiffRational(view, off + 16, isLe);
+              if (d !== null && m !== null && s !== null && d >= 0 && m >= 0 && m < 60 && s >= 0 && s < 60) {
+                rawLon = d + (m / 60.0) + (s / 3600.0);
+                hasLon = true;
+              }
+            }
+          }
+        } else if (tag === 0x0005) {
+          altRef = tiff[e + 8];
+        } else if (tag === 0x0006) {
+          if (type === 5) {
+            const off = view.getUint32(e + 8, isLe);
+            if (off + 8 <= tiff.length) {
+              const a = getTiffRational(view, off, isLe);
+              if (a !== null) {
+                altitude = (altRef === 1) ? -a : a;
+                hasAlt = true;
+              }
+            }
+          }
+        } else if (tag === 0x0007) {
+          if (type === 5 && count >= 3) {
+            const off = view.getUint32(e + 8, isLe);
+            if (off + 24 <= tiff.length) {
+              const h = getTiffRational(view, off, isLe);
+              const m = getTiffRational(view, off + 8, isLe);
+              const s = getTiffRational(view, off + 16, isLe);
+              if (h !== null && m !== null && s !== null) {
+                gpsTime = [Math.floor(h), Math.floor(m), Math.floor(s)];
+                hasTime = true;
+              }
+            }
+          }
+        } else if (tag === 0x001D) {
+          if (type === 2) {
+            const off = (count <= 4) ? (e + 8) : view.getUint32(e + 8, isLe);
+            if (off < tiff.length) {
+              gpsDate = getTiffString(tiff, off, count);
+            }
+          }
+        }
+      }
+
+      /* Require valid non-zero latitude and longitude */
+      if (hasLat && hasLon) {
+        if (Math.abs(rawLat) > 0.000001 || Math.abs(rawLon) > 0.000001) {
+          const signedLat = (latRef === 'S') ? -Math.abs(rawLat) : Math.abs(rawLat);
+          const signedLon = (lonRef === 'W') ? -Math.abs(rawLon) : Math.abs(rawLon);
+
+          if (signedLat >= -90.0 && signedLat <= 90.0 && signedLon >= -180.0 && signedLon <= 180.0) {
+            info.has_gps = true;
+            info.latitude = signedLat;
+            info.longitude = signedLon;
+            info.latitude_ref = (latRef === 'S') ? 'S' : 'N';
+            info.longitude_ref = (lonRef === 'W') ? 'W' : 'E';
+
+            if (hasAlt) {
+              info.has_altitude = true;
+              info.altitude = altitude;
+            }
+
+            if (gpsDate && hasTime) {
+              const pad = (n) => String(n).padStart(2, '0');
+              info.gps_timestamp = `${gpsDate} ${pad(gpsTime[0])}:${pad(gpsTime[1])}:${pad(gpsTime[2])}`;
+              info.has_timestamp = true;
+            } else if (info.datetime) {
+              info.gps_timestamp = info.datetime;
+              info.has_timestamp = true;
+            }
+
+            info.details.push(`GPS Geolocation coordinates found: ${Math.abs(signedLat).toFixed(6)}° ${latRef}, ${Math.abs(signedLon).toFixed(6)}° ${lonRef}`);
+            return true;
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  function scanMetadata(bytes) {
     const info = {
       has_metadata: false,
       has_exif: false,
       has_gps: false,
+      has_camera_info: false,
       camera_make: '',
       camera_model: '',
-      date_time: '',
-      latitude: '',
-      longitude: '',
-      altitude: '',
-      risk_level: 'none',
-      risk_score: 0,
+      software: '',
+      datetime: '',
+      has_altitude: false,
+      altitude: null,
+      has_timestamp: false,
+      gps_timestamp: null,
+      latitude: 0.0,
+      longitude: 0.0,
+      latitude_ref: '',
+      longitude_ref: '',
+      metadata_bytes: 0,
       details: []
     };
 
-    if (!bytes || bytes.length < 4 || bytes[0] !== 0xFF || bytes[1] !== 0xD8) {
-      return info;
-    }
+    if (!bytes || bytes.length < 8) return info;
 
-    let pos = 2;
-    while (pos < bytes.length) {
-      if (bytes[pos] !== 0xFF) { pos++; continue; }
-      while (pos < bytes.length && bytes[pos] === 0xFF) pos++;
-      if (pos >= bytes.length) break;
+    // 1. JPEG scanning
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8) {
+      let pos = 2;
+      let metaBytes = 0;
+      while (pos < bytes.length) {
+        if (bytes[pos] !== 0xFF) { pos++; continue; }
+        while (pos < bytes.length && bytes[pos] === 0xFF) pos++;
+        if (pos >= bytes.length) break;
 
-      const marker = bytes[pos++];
-      if (marker === 0xD9 || marker === 0xDA) break; // EOI or Start of Scan
-      if (marker === 0xD8 || (marker >= 0xD0 && marker <= 0xD7) || marker === 0x01) continue;
+        const marker = bytes[pos++];
+        if (marker === 0xD9 || marker === 0xDA) break;
+        if (marker === 0xD8 || (marker >= 0xD0 && marker <= 0xD7) || marker === 0x01) continue;
 
-      if (pos + 2 > bytes.length) break;
-      const segLen = (bytes[pos] << 8) | bytes[pos + 1];
-      if (segLen < 2 || pos + segLen > bytes.length) break;
+        if (pos + 2 > bytes.length) break;
+        const segLen = (bytes[pos] << 8) | bytes[pos + 1];
+        if (segLen < 2 || pos + segLen > bytes.length) break;
 
-      const segData = bytes.subarray(pos + 2, pos + segLen);
+        const segData = bytes.subarray(pos + 2, pos + segLen);
 
-      // APP1 (EXIF / GPS / XMP)
-      if (marker === 0xE1) {
-        info.has_metadata = true;
-        info.has_exif = true;
-        if (segData.length >= 6 &&
-            segData[0] === 0x45 && segData[1] === 0x78 && segData[2] === 0x69 && segData[3] === 0x66 &&
-            segData[4] === 0x00 && segData[5] === 0x00) {
-          parseTiffExif(segData.subarray(6), info);
-        } else if (segData.length >= 29 && new TextDecoder().decode(segData.subarray(0, 28)).includes('http://ns.adobe.com/xap/1.0/')) {
-          info.details.push("Adobe XMP XML metadata segment detected");
+        if (marker === 0xE1) {
+          info.has_metadata = true;
+          metaBytes += segLen + 2;
+          if (segData.length >= 6 &&
+              segData[0] === 0x45 && segData[1] === 0x78 && segData[2] === 0x69 && segData[3] === 0x66 &&
+              segData[4] === 0x00 && segData[5] === 0x00) {
+            parseTiffExif(segData.subarray(6), info);
+          } else if (segData.length >= 29) {
+            const txt = new TextDecoder().decode(segData.subarray(0, Math.min(segData.length, 120)));
+            if (txt.includes('http://ns.adobe.com/xap/1.0/')) {
+              info.details.push("Adobe XMP XML metadata segment detected");
+              parseTextGps(segData, info);
+            }
+          }
+        } else if (marker === 0xED) {
+          info.has_metadata = true;
+          metaBytes += segLen + 2;
+          info.details.push("Photoshop / IPTC metadata segment detected");
+        } else if (marker === 0xFE) {
+          info.has_metadata = true;
+          metaBytes += segLen + 2;
+          info.details.push("Embedded JPEG comment segment detected");
+        } else if (marker >= 0xE2 && marker <= 0xEF) {
+          metaBytes += segLen + 2;
         }
-      } else if (marker === 0xED) { // APP13 (Photoshop/IPTC)
-        info.has_metadata = true;
-        info.details.push("Photoshop / IPTC metadata segment detected");
-      } else if (marker === 0xFE) { // COM (Comment)
-        info.has_metadata = true;
-        info.details.push("Embedded JPEG comment segment detected");
-      }
 
-      pos += segLen;
+        pos += segLen;
+      }
+      info.metadata_bytes = metaBytes;
+    }
+    // 2. PNG scanning
+    else if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 &&
+             bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A) {
+      let pos = 8;
+      let metaBytes = 0;
+      while (pos + 12 <= bytes.length) {
+        const chunkLen = ((bytes[pos] << 24) | (bytes[pos + 1] << 16) | (bytes[pos + 2] << 8) | bytes[pos + 3]) >>> 0;
+        const type = String.fromCharCode(bytes[pos + 4], bytes[pos + 5], bytes[pos + 6], bytes[pos + 7]);
+        if (pos + 12 + chunkLen > bytes.length) break;
+
+        if (type === 'eXIf' && chunkLen >= 8) {
+          info.has_metadata = true;
+          metaBytes += chunkLen + 12;
+          parseTiffExif(bytes.subarray(pos + 8, pos + 8 + chunkLen), info);
+        } else if (type === 'tEXt' || type === 'zTXt' || type === 'iTXt') {
+          info.has_metadata = true;
+          metaBytes += chunkLen + 12;
+          parseTextGps(bytes.subarray(pos + 8, pos + 8 + chunkLen), info);
+        }
+        pos += 12 + chunkLen;
+      }
+      info.metadata_bytes = metaBytes;
     }
 
+    // 3. Raw TIFF scanning fallback
+    if (!info.has_gps) {
+      for (let i = 0; i + 16 < bytes.length; i++) {
+        if ((bytes[i] === 0x49 && bytes[i+1] === 0x49 && bytes[i+2] === 0x2A && bytes[i+3] === 0x00) ||
+            (bytes[i] === 0x4D && bytes[i+1] === 0x4D && bytes[i+2] === 0x00 && bytes[i+3] === 0x2A)) {
+          if (parseTiffExif(bytes.subarray(i), info)) break;
+        }
+      }
+    }
+
+    // Risk level & reason matching C backend bit-for-bit
     if (info.has_gps) {
-      info.risk_level = 'high';
-      info.risk_score = 95;
-    } else if (info.has_exif || info.camera_make || info.camera_model) {
-      info.risk_level = 'medium';
-      info.risk_score = 50;
-    } else if (info.has_metadata) {
-      info.risk_level = 'low';
-      info.risk_score = 25;
+      info.privacyRisk = 'high';
+      info.risk_level = 'High';
+      info.risk_reason = 'GPS location coordinates detected (reveals precise physical location).';
+    } else if (info.has_camera_info || info.has_exif || info.datetime || info.software) {
+      info.privacyRisk = 'medium';
+      info.risk_level = 'Medium';
+      info.risk_reason = 'Device model, software fingerprint, or timestamp detected.';
+    } else {
+      info.privacyRisk = 'low';
+      info.risk_level = 'Low';
+      info.risk_reason = 'No sensitive geolocation or device metadata detected.';
     }
 
     return info;
-  }
-
-  function parseTiffExif(tiffBytes, info) {
-    if (tiffBytes.length < 8) return;
-    const isLittle = (tiffBytes[0] === 0x49 && tiffBytes[1] === 0x49); // 'II'
-    const view = new DataView(tiffBytes.buffer, tiffBytes.byteOffset, tiffBytes.byteLength);
-
-    const magic = view.getUint16(2, isLittle);
-    if (magic !== 0x002A) return;
-
-    const ifd0Offset = view.getUint32(4, isLittle);
-    if (ifd0Offset + 2 > tiffBytes.length) return;
-
-    const numEntries = view.getUint16(ifd0Offset, isLittle);
-    let gpsOffset = 0;
-
-    for (let i = 0; i < numEntries; i++) {
-      const entryPos = ifd0Offset + 2 + (i * 12);
-      if (entryPos + 12 > tiffBytes.length) break;
-
-      const tag = view.getUint16(entryPos, isLittle);
-      const type = view.getUint16(entryPos + 2, isLittle);
-      const count = view.getUint32(entryPos + 4, isLittle);
-      const valOffset = view.getUint32(entryPos + 8, isLittle);
-
-      if (tag === 0x010F && count > 0 && valOffset < tiffBytes.length) { // Make
-        info.camera_make = getString(tiffBytes, valOffset, count);
-      } else if (tag === 0x0110 && count > 0 && valOffset < tiffBytes.length) { // Model
-        info.camera_model = getString(tiffBytes, valOffset, count);
-      } else if (tag === 0x0132 && count > 0 && valOffset < tiffBytes.length) { // DateTime
-        info.date_time = getString(tiffBytes, valOffset, count);
-      } else if (tag === 0x8825) { // GPS IFD Pointer
-        gpsOffset = valOffset;
-      }
-    }
-
-    if (gpsOffset > 0 && gpsOffset + 2 <= tiffBytes.length) {
-      info.has_gps = true;
-      info.details.push("Precise GPS Geolocation coordinates found (Latitude, Longitude)");
-    }
-  }
-
-  function getString(bytes, offset, count) {
-    const sub = bytes.subarray(offset, Math.min(offset + count, bytes.length));
-    return new TextDecoder().decode(sub).replace(/\0/g, '').trim();
   }
 
   function stripJpegMetadata(bytes) {
@@ -693,15 +957,15 @@
       if (pos >= bytes.length) break;
 
       const marker = bytes[pos++];
-      if (marker === 0xD9) { // EOI
+      if (marker === 0xD9) {
         chunks.push(new Uint8Array([0xFF, 0xD9]));
         break;
       }
-      if (marker === 0xDA) { // SOS (Start of Scan) - remainder is compressed image data
+      if (marker === 0xDA) {
         chunks.push(bytes.subarray(pos - 2));
         break;
       }
-      if (marker >= 0xD0 && marker <= 0xD7) { // RST0..RST7
+      if (marker >= 0xD0 && marker <= 0xD7) {
         chunks.push(new Uint8Array([0xFF, 0xD0 + (marker - 0xD0)]));
         continue;
       }
@@ -717,7 +981,6 @@
       pos += segLen;
     }
 
-    // Merge chunks
     const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
     const out = new Uint8Array(totalLen);
     let offset = 0;
@@ -726,6 +989,50 @@
       offset += chunk.length;
     }
     return out;
+  }
+
+  function stripPngMetadata(bytes) {
+    if (!bytes || bytes.length < 8 ||
+        bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4E || bytes[3] !== 0x47 ||
+        bytes[4] !== 0x0D || bytes[5] !== 0x0A || bytes[6] !== 0x1A || bytes[7] !== 0x0A) {
+      return bytes;
+    }
+
+    const chunks = [];
+    chunks.push(bytes.subarray(0, 8)); // PNG header
+
+    let pos = 8;
+    while (pos + 12 <= bytes.length) {
+      const chunkLen = ((bytes[pos] << 24) | (bytes[pos + 1] << 16) | (bytes[pos + 2] << 8) | bytes[pos + 3]) >>> 0;
+      const type = String.fromCharCode(bytes[pos + 4], bytes[pos + 5], bytes[pos + 6], bytes[pos + 7]);
+      const totalLen = 12 + chunkLen;
+      if (pos + totalLen > bytes.length) break;
+
+      const isMeta = (type === 'eXIf' || type === 'tEXt' || type === 'zTXt' || type === 'iTXt');
+      if (!isMeta) {
+        chunks.push(bytes.subarray(pos, pos + totalLen));
+      }
+      pos += totalLen;
+    }
+
+    const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
+    const out = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const chunk of chunks) {
+      out.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return out;
+  }
+
+  function stripMetadata(bytes) {
+    if (!bytes || bytes.length < 8) return bytes;
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8) {
+      return stripJpegMetadata(bytes);
+    } else if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
+      return stripPngMetadata(bytes);
+    }
+    return bytes;
   }
 
   /* ========================================================================= */
@@ -1022,39 +1329,82 @@
 
     /* ----------------------------------------------------------------------- */
     /* /api/metadata-scan (Privacy Tab)                                        */
+    /* Matches backend/api.c JSON response shape bit-for-bit                   */
     /* ----------------------------------------------------------------------- */
     async handleMetadataScan(formData) {
-      const file = formData.get('image') || formData.get('cover_image');
+      const file = formData.get('image') || formData.get('cover_image') || formData.get('file');
       if (!file) return { success: false, error: 'Image file is required.' };
 
       const bytes = await fileToUint8Array(file);
-      const scan = scanJpegMetadata(bytes);
+      const scan = scanMetadata(bytes);
 
-      return {
-        success: true,
-        has_metadata: scan.has_metadata,
-        has_exif: scan.has_exif,
-        has_gps: scan.has_gps,
-        camera_make: scan.camera_make,
-        camera_model: scan.camera_model,
-        date_time: scan.date_time,
-        latitude: scan.latitude,
-        longitude: scan.longitude,
-        risk_level: scan.risk_level,
-        risk_score: scan.risk_score,
-        details: scan.details
-      };
+      if (scan.has_gps) {
+        return {
+          success: true,
+          hasGps: true,
+          gps: {
+            latitude: scan.latitude,
+            longitude: scan.longitude,
+            latitudeRef: scan.latitude_ref,
+            longitudeRef: scan.longitude_ref,
+            altitude: scan.has_altitude ? scan.altitude : null,
+            timestamp: scan.gps_timestamp || null
+          },
+          privacyRisk: 'high',
+          has_metadata: Boolean(scan.has_metadata),
+          has_exif: Boolean(scan.has_exif),
+          has_gps: true,
+          has_camera_info: Boolean(scan.has_camera_info),
+          camera_make: scan.camera_make || '',
+          camera_model: scan.camera_model || '',
+          software: scan.software || '',
+          datetime: scan.datetime || '',
+          latitude: scan.latitude,
+          longitude: scan.longitude,
+          latitude_ref: scan.latitude_ref,
+          longitude_ref: scan.longitude_ref,
+          altitude: scan.has_altitude ? scan.altitude : 0.0,
+          risk_level: 'High',
+          risk_reason: scan.risk_reason,
+          metadata_bytes: scan.metadata_bytes,
+          details: scan.details
+        };
+      } else {
+        return {
+          success: true,
+          hasGps: false,
+          gps: null,
+          privacyRisk: scan.privacyRisk,
+          has_metadata: Boolean(scan.has_metadata),
+          has_exif: Boolean(scan.has_exif),
+          has_gps: false,
+          has_camera_info: Boolean(scan.has_camera_info),
+          camera_make: scan.camera_make || '',
+          camera_model: scan.camera_model || '',
+          software: scan.software || '',
+          datetime: scan.datetime || '',
+          latitude: 0.0,
+          longitude: 0.0,
+          latitude_ref: '',
+          longitude_ref: '',
+          altitude: null,
+          risk_level: scan.risk_level,
+          risk_reason: scan.risk_reason,
+          metadata_bytes: scan.metadata_bytes,
+          details: scan.details
+        };
+      }
     },
 
     /* ----------------------------------------------------------------------- */
     /* /api/metadata-strip (Privacy Tab)                                       */
     /* ----------------------------------------------------------------------- */
     async handleMetadataStrip(formData) {
-      const file = formData.get('image');
+      const file = formData.get('image') || formData.get('cover_image') || formData.get('file');
       if (!file) return { success: false, error: 'Image file is required.' };
 
       const bytes = await fileToUint8Array(file);
-      const stripped = stripJpegMetadata(bytes);
+      const stripped = stripMetadata(bytes);
       const base64 = uint8ArrayToBase64(stripped);
 
       return {
@@ -1127,7 +1477,7 @@
   }
 
   // Auto-initialize when script loads in browser
-  if (typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
     window.addEventListener('DOMContentLoaded', () => {
       StegoEngine.init();
     });
