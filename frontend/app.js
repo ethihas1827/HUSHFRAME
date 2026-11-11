@@ -587,25 +587,22 @@ function validateHideForm() {
 }
 
 function submitHideSecret() {
-  const pass = document.getElementById('hidePassword').value;
-  if (pass.length === 0 && !state.hide.confirmedUnprotected) {
-    document.getElementById('unprotectedModal').classList.remove('hidden');
-    return;
-  }
-
   executeHideRequest();
 }
 
 function closeUnprotectedModal(focusPassword) {
-  document.getElementById('unprotectedModal').classList.add('hidden');
+  const modal = document.getElementById('unprotectedModal');
+  if (modal) modal.classList.add('hidden');
   if (focusPassword) {
-    document.getElementById('hidePassword').focus();
+    const pInput = document.getElementById('hidePassword');
+    if (pInput) pInput.focus();
   }
 }
 
 function confirmUnprotectedProceed() {
   state.hide.confirmedUnprotected = true;
-  document.getElementById('unprotectedModal').classList.add('hidden');
+  const modal = document.getElementById('unprotectedModal');
+  if (modal) modal.classList.add('hidden');
   executeHideRequest();
 }
 
@@ -620,10 +617,13 @@ async function executeHideRequest() {
 
   const formData = new FormData();
   formData.append('cover', state.hide.coverFile);
+  formData.append('cover_image', state.hide.coverFile);
 
   if (state.hide.secretType === 'text') {
+    const textVal = document.getElementById('secretTextMessage').value;
     formData.append('secret_type', 'text');
-    formData.append('message', document.getElementById('secretTextMessage').value);
+    formData.append('message', textVal);
+    formData.append('secret_text', textVal);
   } else {
     formData.append('secret_type', 'file');
     formData.append('secret_file', state.hide.secretFile);
@@ -864,6 +864,7 @@ async function submitRevealSecret() {
 
   const formData = new FormData();
   formData.append('stego_image', state.reveal.stegoFile);
+  formData.append('image', state.reveal.stegoFile);
 
   const pass = document.getElementById('revealPassword').value;
   if (pass.length > 0) {

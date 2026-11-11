@@ -72,6 +72,11 @@ bool uploads_is_valid_image(const uint8_t *data, size_t size, StegoImageFormat *
 char *uploads_create_temp_file(const uint8_t *data, size_t size, const char *suffix);
 
 /**
+ * @brief Create a secure temporary file inside a dedicated subfolder preserving the authentic filename.
+ */
+char *uploads_create_temp_file_with_name(const uint8_t *data, size_t size, const char *original_name);
+
+/**
  * @brief Securely zero-overwrite and delete a temporary file.
  */
 void uploads_cleanup_temp_file(const char *path);

@@ -14,6 +14,7 @@
 #include <windows.h>
 #else
 #include <unistd.h>
+#include <sys/stat.h>
 #endif
 
 /* Binary search for byte sequence (memmem equivalent) */
@@ -343,6 +344,88 @@ char *uploads_create_temp_file(const uint8_t *data, size_t size, const char *suf
     return result;
 }
 
+char *uploads_create_temp_file_with_name(const uint8_t *data, size_t size, const char *original_name) {
+    char temp_dir[512] = ".";
+#if defined(_WIN32)
+    char sys_temp[MAX_PATH];
+    DWORD len = GetTempPathA(sizeof(sys_temp), sys_temp);
+    if (len > 0 && len < sizeof(sys_temp)) {
+        snprintf(temp_dir, sizeof(temp_dir), "%s", sys_temp);
+        size_t l = strlen(temp_dir);
+        if (l > 0 && (temp_dir[l - 1] == '\\' || temp_dir[l - 1] == '/')) {
+            temp_dir[l - 1] = '\0';
+        }
+    }
+#else
+    const char *tmp = getenv("TMPDIR");
+    if (!tmp) tmp = "/tmp";
+    snprintf(temp_dir, sizeof(temp_dir), "%s", tmp);
+#endif
+
+    uint8_t rand_bytes[8];
+    stego_random_bytes(rand_bytes, sizeof(rand_bytes));
+
+    char subfolder[512];
+    snprintf(subfolder, sizeof(subfolder), "%s/stego_dir_%02x%02x%02x%02x",
+             temp_dir, rand_bytes[0], rand_bytes[1], rand_bytes[2], rand_bytes[3]);
+
+#if defined(_WIN32)
+    CreateDirectoryA(subfolder, NULL);
+#else
+    mkdir(subfolder, 0700);
+#endif
+
+    const char *base = original_name ? strrchr(original_name, '/') : NULL;
+    if (!base && original_name) base = strrchr(original_name, '\\');
+    base = base ? base + 1 : (original_name ? original_name : "secret.bin");
+    if (base[0] == '\0') base = "secret.bin";
+
+    char safe_name[256];
+    size_t i = 0;
+    for (; base[i] != '\0' && i < sizeof(safe_name) - 1; i++) {
+        char c = base[i];
+        if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"' || c == '<' || c == '>' || c == '|') {
+            safe_name[i] = '_';
+        } else {
+            safe_name[i] = c;
+        }
+    }
+    safe_name[i] = '\0';
+
+    char filename[512];
+    snprintf(filename, sizeof(filename), "%s/%s", subfolder, safe_name);
+
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+#if defined(_WIN32)
+        RemoveDirectoryA(subfolder);
+#else
+        rmdir(subfolder);
+#endif
+        return NULL;
+    }
+
+    if (data && size > 0) {
+        if (fwrite(data, 1, size, fp) != size) {
+            fclose(fp);
+            remove(filename);
+#if defined(_WIN32)
+            RemoveDirectoryA(subfolder);
+#else
+            rmdir(subfolder);
+#endif
+            return NULL;
+        }
+    }
+    fclose(fp);
+
+    char *result = (char *)malloc(strlen(filename) + 1);
+    if (result) {
+        strcpy(result, filename);
+    }
+    return result;
+}
+
 void uploads_cleanup_temp_file(const char *path) {
     if (!path || path[0] == '\0') return;
 
@@ -366,4 +449,23 @@ void uploads_cleanup_temp_file(const char *path) {
         fclose(fp);
     }
     remove(path);
+
+    /* Clean up parent folder if it was a temporary directory created for this file */
+    const char *last_slash = strrchr(path, '/');
+    if (!last_slash) last_slash = strrchr(path, '\\');
+    if (last_slash) {
+        char parent[512];
+        size_t plen = (size_t)(last_slash - path);
+        if (plen < sizeof(parent)) {
+            memcpy(parent, path, plen);
+            parent[plen] = '\0';
+            if (strstr(parent, "stego_dir_") != NULL) {
+#if defined(_WIN32)
+                RemoveDirectoryA(parent);
+#else
+                rmdir(parent);
+#endif
+            }
+        }
+    }
 }

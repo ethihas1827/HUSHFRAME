@@ -795,11 +795,11 @@
     /* /api/hide                                                               */
     /* ----------------------------------------------------------------------- */
     async handleHide(formData) {
-      const cover = formData.get('cover_image') || formData.get('cover');
+      const cover = formData.get('cover_image') || formData.get('cover') || formData.get('image');
       if (!cover) return { success: false, error: 'Cover image is required.' };
 
-      const secretText = formData.get('secret_text');
-      const secretFile = formData.get('secret_file');
+      const secretText = formData.get('message') || formData.get('secret_text') || formData.get('secret');
+      const secretFile = formData.get('secret_file') || formData.get('file');
       const password = formData.get('password') || '';
       const bits = parseInt(formData.get('bits') || '1', 10);
 

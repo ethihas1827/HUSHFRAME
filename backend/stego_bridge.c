@@ -55,16 +55,17 @@ char *stego_base64_encode(const uint8_t *data, size_t input_length) {
 
     size_t i = 0, j = 0;
     while (i < input_length) {
-        uint32_t octet_a = i < input_length ? data[i++] : 0;
-        uint32_t octet_b = i < input_length ? data[i++] : 0;
-        uint32_t octet_c = i < input_length ? data[i++] : 0;
+        size_t rem = input_length - i;
+        uint32_t octet_a = (uint8_t)data[i++];
+        uint32_t octet_b = (rem > 1) ? (uint8_t)data[i++] : 0;
+        uint32_t octet_c = (rem > 2) ? (uint8_t)data[i++] : 0;
 
         uint32_t triple = (octet_a << 16) | (octet_b << 8) | octet_c;
 
         encoded[j++] = b64_table[(triple >> 18) & 0x3F];
         encoded[j++] = b64_table[(triple >> 12) & 0x3F];
-        encoded[j++] = (i > input_length + 1) ? '=' : b64_table[(triple >> 6) & 0x3F];
-        encoded[j++] = (i > input_length) ? '=' : b64_table[triple & 0x3F];
+        encoded[j++] = (rem > 1) ? b64_table[(triple >> 6) & 0x3F] : '=';
+        encoded[j++] = (rem > 2) ? b64_table[triple & 0x3F] : '=';
     }
     encoded[output_length] = '\0';
     return encoded;
@@ -153,7 +154,7 @@ StegoResult bridge_hide_advanced(const uint8_t *cover_bytes, size_t cover_len,
         return STEGO_ERR_FILE_WRITE;
     }
 
-    char *tmp_secret = uploads_create_temp_file(secret_bytes, secret_len, ".dat");
+    char *tmp_secret = uploads_create_temp_file_with_name(secret_bytes, secret_len, secret_filename);
     if (!tmp_secret) {
         uploads_cleanup_temp_file(tmp_cover);
         free(tmp_cover);
@@ -306,7 +307,7 @@ StegoResult bridge_split_hide(const uint8_t **cover_bytes_array, const size_t *c
         return STEGO_ERR_INVALID_ARG;
     }
 
-    char *tmp_secret = uploads_create_temp_file(secret_bytes, secret_len, ".dat");
+    char *tmp_secret = uploads_create_temp_file_with_name(secret_bytes, secret_len, secret_filename);
     if (!tmp_secret) {
         snprintf(out->error_msg, sizeof(out->error_msg), "Failed to save secret file.");
         return STEGO_ERR_FILE_WRITE;
@@ -619,7 +620,7 @@ StegoResult bridge_reveal(const uint8_t *stego_bytes, size_t stego_len,
         out->payload_data = restored_file;
         out->payload_size = restored_len;
         out->is_text = is_printable_utf8(restored_file, restored_len);
-        out->is_file = !out->is_text;
+        out->is_file = true;
         snprintf(out->filename, sizeof(out->filename), "%s", meta.filename);
         snprintf(out->sha256_hex, sizeof(out->sha256_hex), "%s", meta.sha256_hex);
     } else {
