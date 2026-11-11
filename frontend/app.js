@@ -102,6 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initDragAndDrop();
   initFormInputs();
   initSandbox();
+  const mainContent = document.querySelector('.main-content');
+  const activePane = document.querySelector('.tab-pane.active');
+  if (mainContent && activePane && activePane.id === 'pane-activity') {
+    mainContent.classList.add('main-content-wide');
+  }
   if (typeof HistoryManager !== 'undefined') {
     HistoryManager.render();
   }
@@ -137,6 +142,11 @@ function switchTab(targetId) {
 
   if (targetId === 'activity' && typeof HistoryManager !== 'undefined') {
     HistoryManager.render();
+  }
+
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) {
+    mainContent.classList.toggle('main-content-wide', targetId === 'activity');
   }
 
   const tabs = document.querySelectorAll('.nav-tab');
