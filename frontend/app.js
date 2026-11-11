@@ -2177,50 +2177,7 @@ const HistoryManager = {
     this.render();
   },
 
-  renderLocalStorageInspector() {
-    const keyCountEl = document.getElementById('lsKeyCount');
-    const keysListEl = document.getElementById('lsKeysList');
-    const sizeUsedEl = document.getElementById('lsSizeUsed');
-    const rawPreEl = document.getElementById('lsRawPre');
-
-    if (!keyCountEl || !rawPreEl) return;
-
-    let totalBytes = 0;
-    const hushframeKeys = [];
-    const storageSnapshot = {};
-
-    try {
-      if (typeof localStorage !== 'undefined') {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (!key) continue;
-          const val = localStorage.getItem(key) || '';
-          totalBytes += (key.length + val.length) * 2;
-          if (key.startsWith('hushframe_') || key.startsWith('bmp_stego_')) {
-            hushframeKeys.push(key);
-            try {
-              storageSnapshot[key] = JSON.parse(val);
-            } catch (_) {
-              storageSnapshot[key] = val;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      // Storage access blocked or restricted
-    }
-
-    keyCountEl.textContent = `${hushframeKeys.length} active`;
-    keysListEl.textContent = hushframeKeys.length > 0 ? hushframeKeys.join(', ') : 'No records yet';
-    sizeUsedEl.textContent = formatBytes(totalBytes);
-
-    rawPreEl.textContent = Object.keys(storageSnapshot).length > 0 
-      ? JSON.stringify(storageSnapshot, null, 2)
-      : '{\n  /* LocalStorage is ready. Operations and preferences stay 100% on this device. */\n}';
-  },
-
   render() {
-    this.renderLocalStorageInspector();
     const table = document.getElementById('histTable');
     const tbody = document.getElementById('histTableBody');
     const emptyState = document.getElementById('histEmptyState');
@@ -2493,19 +2450,6 @@ function renderSandbox() {
   if (b1) b1.classList.toggle('active', sandboxState.secretBit === 1);
 }
 
-function copyLocalStorageJson() {
-  const pre = document.getElementById('lsRawPre');
-  if (!pre) return;
-  if (navigator && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-    navigator.clipboard.writeText(pre.textContent).then(() => {
-      showAlert('success', 'LocalStorage JSON copied to clipboard!');
-    }).catch(() => {
-      showAlert('info', 'Copied text: check console or select manually.');
-    });
-  } else {
-    showAlert('info', 'Clipboard API unavailable. You can select and copy the JSON text manually.');
-  }
-}
 
 /* ==========================================================================
    Procedural Sample Carrier Generator (1-Click Interactive Demo)
