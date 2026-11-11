@@ -697,6 +697,11 @@ async function executeHideRequest() {
     state.hide.isProtected = !!json.is_protected;
     state.hide.coverName = state.hide.coverFile ? state.hide.coverFile.name : 'cover.png';
 
+    // Record activity immediately upon successful protection
+    if (typeof HistoryManager !== 'undefined') {
+      HistoryManager.record(Terminology.BTN_PROTECT_FILE, state.hide.coverName, state.hide.downloadFilename, state.hide.isProtected);
+    }
+
     resultCard.classList.remove('hidden');
     showAlert('success', Terminology.MSG_PROTECTED_READY);
 
@@ -722,10 +727,6 @@ function downloadProtectedImage() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-
-  if (typeof HistoryManager !== 'undefined') {
-    HistoryManager.record(Terminology.BTN_PROTECT_FILE, state.hide.coverName || 'cover.png', filename, state.hide.isProtected);
-  }
 
   showAlert('success', 'Download started. Session state cleared.');
 
@@ -913,6 +914,16 @@ async function submitRevealSecret() {
       state.reveal.isProtected = !!json.is_protected;
       state.reveal.stegoName = state.reveal.stegoFile ? state.reveal.stegoFile.name : 'protected_image.png';
 
+      // Record activity immediately upon successful file recovery
+      if (typeof HistoryManager !== 'undefined') {
+        HistoryManager.record(
+          Terminology.BTN_RECOVER_FILE,
+          state.reveal.stegoName,
+          state.reveal.downloadFilename,
+          state.reveal.isProtected
+        );
+      }
+
     } else {
       if (fileBox) fileBox.classList.add('hidden');
       if (btnDown) btnDown.classList.add('hidden');
@@ -923,6 +934,7 @@ async function submitRevealSecret() {
       const textEl = document.getElementById('revealResultText');
       if (textEl) textEl.value = json.text || '';
 
+      // Record activity immediately upon successful text recovery
       if (typeof HistoryManager !== 'undefined') {
         HistoryManager.record(
           Terminology.BTN_RECOVER_FILE,
@@ -959,15 +971,6 @@ function downloadRecoveredFile() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-
-  if (typeof HistoryManager !== 'undefined') {
-    HistoryManager.record(
-      Terminology.BTN_RECOVER_FILE,
-      state.reveal.stegoName || 'protected_image.png',
-      filename,
-      state.reveal.isProtected
-    );
-  }
 
   showAlert('success', 'Download started. Session state cleared.');
 
@@ -1107,6 +1110,12 @@ async function submitVerifyImage() {
       document.getElementById('verifyResultMsg').textContent = 'No protected content was detected in this image.';
     }
 
+    if (typeof HistoryManager !== 'undefined') {
+      const inputDesc = state.verify.imageFile ? state.verify.imageFile.name : 'image.png';
+      const outputDesc = json.has_payload ? (json.is_protected ? 'Protected payload' : 'Standard payload') : 'No payload';
+      HistoryManager.record('Verify image', inputDesc, outputDesc, !!json.is_protected);
+    }
+
     card.classList.remove('hidden');
 
   } catch (err) {
@@ -1174,6 +1183,12 @@ async function submitCheckCapacity() {
       noticeEl.classList.remove('hidden');
     } else {
       noticeEl.classList.add('hidden');
+    }
+
+    if (typeof HistoryManager !== 'undefined') {
+      const inputDesc = state.capacity.imageFile ? state.capacity.imageFile.name : 'image.png';
+      const outputDesc = `${formatBytes(json.unencrypted_capacity || 0)} capacity`;
+      HistoryManager.record('Capacity check', inputDesc, outputDesc, false);
     }
 
     document.getElementById('capResultCard').classList.remove('hidden');
@@ -2025,6 +2040,12 @@ async function submitScanPrivacy() {
       techEl.innerHTML = tHtml;
     }
 
+    if (typeof HistoryManager !== 'undefined') {
+      const inputDesc = state.privacy.imageFile ? state.privacy.imageFile.name : 'image.jpg';
+      const outputDesc = `${risk.toUpperCase()} risk (${hasGps ? 'GPS found' : 'No GPS'})`;
+      HistoryManager.record('Privacy scan', inputDesc, outputDesc, false);
+    }
+
     document.getElementById('privResultCard').classList.remove('hidden');
     const riskLabel = risk === 'high' ? 'High' : (risk === 'medium' ? 'Medium' : 'Low');
     showAlert('info', `Scan complete: ${riskLabel.toLowerCase()} risk detected.`);
@@ -2063,6 +2084,11 @@ async function submitStripMetadata() {
     state.privacy.cleanBlobUrl = blobUrl;
     state.privacy.cleanFilename = json.filename || 'clean_image.png';
 
+    if (typeof HistoryManager !== 'undefined') {
+      const inputDesc = state.privacy.imageFile ? state.privacy.imageFile.name : 'image.jpg';
+      HistoryManager.record('Remove metadata', inputDesc, state.privacy.cleanFilename, false);
+    }
+
     const noticeEl = document.getElementById('privCleanNotice');
     noticeEl.textContent = Terminology.MSG_LOCATION_REMOVED;
 
@@ -2088,15 +2114,6 @@ function downloadCleanImage() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-
-  if (typeof HistoryManager !== 'undefined') {
-    HistoryManager.record(
-      'Remove metadata',
-      state.privacy.imageFile ? state.privacy.imageFile.name : 'image',
-      filename,
-      false
-    );
-  }
 
   showAlert('success', 'Download started. Clean image saved.');
 
@@ -2187,7 +2204,9 @@ const HistoryManager = {
     if (!tbody || !emptyState) return;
 
     if (!this.isEnabled()) {
+      table.classList.add('hidden');
       table.style.display = 'none';
+      emptyState.classList.remove('hidden');
       emptyState.style.display = 'flex';
       emptyState.innerHTML = `
         <div class="empty-state-icon">
@@ -2204,7 +2223,9 @@ const HistoryManager = {
 
     const items = this.getAll();
     if (items.length === 0) {
+      table.classList.add('hidden');
       table.style.display = 'none';
+      emptyState.classList.remove('hidden');
       emptyState.style.display = 'flex';
       emptyState.innerHTML = `
         <div class="empty-state-icon">
@@ -2219,7 +2240,9 @@ const HistoryManager = {
       return;
     }
 
+    table.classList.remove('hidden');
     table.style.display = 'table';
+    emptyState.classList.add('hidden');
     emptyState.style.display = 'none';
     tbody.innerHTML = '';
 
@@ -2236,6 +2259,12 @@ const HistoryManager = {
       } else if (actionLower.includes('recover') || actionLower.includes('reveal')) {
         actionClass = 'action-recover';
         actionIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>';
+      } else if (actionLower.includes('verify')) {
+        actionClass = 'action-protect';
+        actionIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+      } else if (actionLower.includes('capacity')) {
+        actionClass = 'action-neutral';
+        actionIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
       } else if (actionLower.includes('split') || actionLower.includes('recombine')) {
         actionClass = 'action-neutral';
         actionIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>';
