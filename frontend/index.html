@@ -218,8 +218,9 @@
           <p class="screen-subtitle">Select a cover image and the content you want to protect.</p>
         </div>
 
-        <!-- Step 1: Select Cover Image -->
-        <div class="step-card">
+        <div class="workflow-grid-2col">
+          <!-- Step 1: Select Cover Image -->
+          <div class="step-card">
           <div class="step-header">
             <span class="step-badge">1</span>
             <span class="step-title">Select a cover image</span>
@@ -377,6 +378,7 @@
           </div>
 
         </div>
+      </div> <!-- end workflow-grid-2col -->
 
         <!-- Step 3: Password Protection -->
         <div class="step-card">
@@ -510,66 +512,68 @@
           <p class="screen-subtitle">Divide a large file across multiple cover images.</p>
         </div>
 
-        <div class="step-card">
-          <div class="step-header">
-            <span class="step-badge">1</span>
-            <span class="step-title">Select two or more cover images</span>
-          </div>
+        <div class="workflow-grid-2col">
+          <div class="step-card">
+            <div class="step-header">
+              <span class="step-badge">1</span>
+              <span class="step-title">Select two or more cover images</span>
+            </div>
 
-          <div class="dropzone" id="splitCoverDropzone">
-            <input type="file" id="splitCoverInput" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif" multiple hidden onchange="handleSplitCoversSelected(this.files)">
-            <div class="dropzone-content">
-              <div class="dropzone-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div class="dropzone" id="splitCoverDropzone">
+              <input type="file" id="splitCoverInput" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif" multiple hidden onchange="handleSplitCoversSelected(this.files)">
+              <div class="dropzone-content">
+                <div class="dropzone-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <p class="dropzone-text"><strong>Select two or more cover images</strong> or drag them here</p>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitCoverInput').click()">Browse images</button>
               </div>
-              <p class="dropzone-text"><strong>Select two or more cover images</strong> or drag them here</p>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitCoverInput').click()">Browse images</button>
+            </div>
+
+            <div class="multi-covers-container hidden" id="splitCoversContainer">
+              <div class="multi-covers-header">
+                <span id="splitCoversCount">0 cover images selected</span>
+                <span class="tag tag-capacity" id="splitCombinedCap">Combined: 0 KB</span>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="clearSplitCovers()">Clear</button>
+              </div>
+              <div class="multi-covers-grid" id="splitCoversGrid"></div>
             </div>
           </div>
 
-          <div class="multi-covers-container hidden" id="splitCoversContainer">
-            <div class="multi-covers-header">
-              <span id="splitCoversCount">0 cover images selected</span>
-              <span class="tag tag-capacity" id="splitCombinedCap">Combined: 0 KB</span>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="clearSplitCovers()">Clear</button>
+          <div class="step-card">
+            <div class="step-header">
+              <span class="step-badge">2</span>
+              <span class="step-title">Choose the content to protect</span>
             </div>
-            <div class="multi-covers-grid" id="splitCoversGrid"></div>
-          </div>
-        </div>
 
-        <div class="step-card">
-          <div class="step-header">
-            <span class="step-badge">2</span>
-            <span class="step-title">Choose the content to protect</span>
-          </div>
-
-          <div class="segmented-control">
-            <label class="segmented-option">
-              <input type="radio" name="splitSecretType" value="file" checked onchange="toggleSplitSecretType()">
-              <span>File</span>
-            </label>
-            <label class="segmented-option">
-              <input type="radio" name="splitSecretType" value="text" onchange="toggleSplitSecretType()">
-              <span>Text message</span>
-            </label>
-          </div>
-
-          <div class="secret-box" id="splitSecretFileBox">
-            <div class="file-picker-row">
-              <input type="file" id="splitSecretFileInput" class="form-file-input" hidden onchange="handleSplitSecretFile(this.files[0])">
-              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitSecretFileInput').click()">Choose file</button>
-              <div id="splitSecretFileInfo" class="file-info-text">No file chosen</div>
+            <div class="segmented-control">
+              <label class="segmented-option">
+                <input type="radio" name="splitSecretType" value="file" checked onchange="toggleSplitSecretType()">
+                <span>File</span>
+              </label>
+              <label class="segmented-option">
+                <input type="radio" name="splitSecretType" value="text" onchange="toggleSplitSecretType()">
+                <span>Text message</span>
+              </label>
             </div>
-          </div>
 
-          <div class="secret-box hidden" id="splitSecretTextBox">
-            <textarea id="splitSecretTextMsg" class="form-textarea" placeholder="Enter message to split..." oninput="handleSplitSecretText()"></textarea>
-            <div class="form-helper">
-              <span id="splitSecretCharCount">0 characters</span>
-              <span id="splitSecretSize">0 bytes</span>
+            <div class="secret-box" id="splitSecretFileBox">
+              <div class="file-picker-row">
+                <input type="file" id="splitSecretFileInput" class="form-file-input" hidden onchange="handleSplitSecretFile(this.files[0])">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitSecretFileInput').click()">Choose file</button>
+                <div id="splitSecretFileInfo" class="file-info-text">No file chosen</div>
+              </div>
+            </div>
+
+            <div class="secret-box hidden" id="splitSecretTextBox">
+              <textarea id="splitSecretTextMsg" class="form-textarea" placeholder="Enter message to split..." oninput="handleSplitSecretText()"></textarea>
+              <div class="form-helper">
+                <span id="splitSecretCharCount">0 characters</span>
+                <span id="splitSecretSize">0 bytes</span>
+              </div>
             </div>
           </div>
-        </div>
+        </div> <!-- end workflow-grid-2col -->
 
         <div class="step-card">
           <div class="step-header">
@@ -670,71 +674,72 @@
           <p class="screen-subtitle">Extract a protected message or file from an image.</p>
         </div>
 
-        <!-- Step 1: Protected Image -->
-        <div class="step-card">
-          <div class="step-header">
-            <span class="step-badge">1</span>
-            <span class="step-title">Select a protected image</span>
-          </div>
-
-          <div class="dropzone" id="revealDropzone">
-            <input type="file" id="revealImageInput" accept="image/png,image/bmp,image/jpeg,image/webp,image/gif" hidden>
-            <div class="dropzone-content">
-              <div class="dropzone-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              </div>
-              <p class="dropzone-text"><strong>Select a protected image</strong> or drag it here</p>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('revealImageInput').click()">Browse image</button>
+        <div class="workflow-grid-2col">
+          <!-- Step 1: Protected Image -->
+          <div class="step-card">
+            <div class="step-header">
+              <span class="step-badge">1</span>
+              <span class="step-title">Select a protected image</span>
             </div>
-          </div>
 
-          <div class="image-meta-card hidden" id="revealImageMeta">
-            <img id="revealThumb" class="meta-thumb" alt="Protected image preview">
-            <div class="meta-details">
-              <div class="meta-filename" id="revealMetaName">protected.png</div>
-              <div class="meta-tags">
-                <span class="tag" id="revealMetaSize">0 KB</span>
-                <span class="tag" id="revealMetaFormat">PNG</span>
+            <div class="dropzone" id="revealDropzone">
+              <input type="file" id="revealImageInput" accept="image/png,image/bmp,image/jpeg,image/webp,image/gif" hidden>
+              <div class="dropzone-content">
+                <div class="dropzone-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <p class="dropzone-text"><strong>Select a protected image</strong> or drag it here</p>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('revealImageInput').click()">Browse image</button>
               </div>
             </div>
-            <button type="button" class="btn-icon" title="Remove image" onclick="resetRevealImage()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-        </div>
 
-        <!-- Step 2: Password -->
-        <div class="step-card">
-          <div class="step-header">
-            <span class="step-badge">2</span>
-            <span class="step-title">Enter password</span>
-          </div>
-
-          <div class="password-input-wrap">
-            <input type="password" id="revealPassword" class="form-input" placeholder="Password (if protected)" autocomplete="off">
-            <button type="button" class="btn-toggle-eye" title="Toggle visibility" onclick="togglePasswordVisibility('revealPassword')">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-
-        <!-- Step 3: Reveal Action & Result Area -->
-        <div class="step-card">
-          <div class="action-row">
-            <button type="button" class="btn btn-primary btn-lg w-full" id="btnRevealSecret" onclick="submitRevealSecret()" disabled>
-              Recover file
-            </button>
-          </div>
-
-          <div class="progress-wrap hidden" id="revealProgress">
-            <div class="progress-bar">
-              <div class="progress-fill" id="revealProgressFill"></div>
+            <div class="image-meta-card hidden" id="revealImageMeta">
+              <img id="revealThumb" class="meta-thumb" alt="Protected image preview">
+              <div class="meta-details">
+                <div class="meta-filename" id="revealMetaName">protected.png</div>
+                <div class="meta-tags">
+                  <span class="tag" id="revealMetaSize">0 KB</span>
+                  <span class="tag" id="revealMetaFormat">PNG</span>
+                </div>
+              </div>
+              <button type="button" class="btn-icon" title="Remove image" onclick="resetRevealImage()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
             </div>
-            <div class="progress-label" id="revealProgressLabel">Verifying authentication and recovering file...</div>
           </div>
 
-          <!-- Recovered Secret Result Card -->
-          <div class="result-card hidden" id="revealResultCard">
+          <!-- Step 2: Password & Action -->
+          <div class="step-card">
+            <div class="step-header">
+              <span class="step-badge">2</span>
+              <span class="step-title">Enter password</span>
+            </div>
+            <p class="step-hint">Leave blank for standard protection, or enter password.</p>
+
+            <div class="password-input-wrap mt-3">
+              <input type="password" id="revealPassword" class="form-input" placeholder="Password (if protected)" autocomplete="off">
+              <button type="button" class="btn-toggle-eye" title="Toggle visibility" onclick="togglePasswordVisibility('revealPassword')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+
+            <div class="action-row mt-4">
+              <button type="button" class="btn btn-primary btn-lg w-full" id="btnRevealSecret" onclick="submitRevealSecret()" disabled>
+                Recover file
+              </button>
+            </div>
+
+            <div class="progress-wrap hidden" id="revealProgress">
+              <div class="progress-bar">
+                <div class="progress-fill" id="revealProgressFill"></div>
+              </div>
+              <div class="progress-label" id="revealProgressLabel">Verifying authentication and recovering file...</div>
+            </div>
+          </div>
+        </div> <!-- end workflow-grid-2col -->
+
+        <!-- Recovered Secret Result Card -->
+        <div class="result-card hidden" id="revealResultCard">
             <div class="result-header">
               <h3 class="result-title">File recovered successfully.</h3>
               <p class="result-subtitle" id="revealResultSub">File authenticated and recovered.</p>
@@ -777,61 +782,63 @@
           <p class="screen-subtitle">Select all split part images to recover the original file.</p>
         </div>
 
-        <div class="step-card">
-          <div class="step-header">
-            <span class="step-badge">1</span>
-            <span class="step-title">Select all part images</span>
-          </div>
+        <div class="workflow-grid-2col">
+          <div class="step-card">
+            <div class="step-header">
+              <span class="step-badge">1</span>
+              <span class="step-title">Select all part images</span>
+            </div>
 
-          <div class="dropzone" id="splitRevDropzone">
-            <input type="file" id="splitRevInput" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif" multiple hidden onchange="handleSplitRevPartsSelected(this.files)">
-            <div class="dropzone-content">
-              <div class="dropzone-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div class="dropzone" id="splitRevDropzone">
+              <input type="file" id="splitRevInput" accept="image/png,image/jpeg,image/bmp,image/webp,image/gif" multiple hidden onchange="handleSplitRevPartsSelected(this.files)">
+              <div class="dropzone-content">
+                <div class="dropzone-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                </div>
+                <p class="dropzone-text"><strong>Select all part images</strong> (in any order)</p>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitRevInput').click()">Browse part images</button>
               </div>
-              <p class="dropzone-text"><strong>Select all part images</strong> (in any order)</p>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('splitRevInput').click()">Browse part images</button>
+            </div>
+
+            <div class="multi-covers-container hidden" id="splitRevPartsContainer">
+              <div class="multi-covers-header">
+                <span id="splitRevPartsCount">0 part images selected</span>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="clearSplitRevParts()">Clear</button>
+              </div>
+              <div class="multi-covers-grid" id="splitRevPartsGrid"></div>
             </div>
           </div>
 
-          <div class="multi-covers-container hidden" id="splitRevPartsContainer">
-            <div class="multi-covers-header">
-              <span id="splitRevPartsCount">0 part images selected</span>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="clearSplitRevParts()">Clear</button>
+          <div class="step-card">
+            <div class="step-header">
+              <span class="step-badge">2</span>
+              <span class="step-title">Enter password & recover</span>
             </div>
-            <div class="multi-covers-grid" id="splitRevPartsGrid"></div>
-          </div>
-        </div>
+            <p class="step-hint">Leave blank for standard protection, or enter password.</p>
 
-        <div class="step-card">
-          <div class="step-header">
-            <span class="step-badge">2</span>
-            <span class="step-title">Enter password</span>
-          </div>
-
-          <div class="password-input-wrap">
-            <input type="password" id="splitRevPassword" class="form-input" placeholder="Password (if protected)" autocomplete="off">
-            <button type="button" class="btn-toggle-eye" title="Toggle visibility" onclick="togglePasswordVisibility('splitRevPassword')">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            </button>
-          </div>
-        </div>
-
-        <div class="step-card">
-          <div class="action-row">
-            <button type="button" class="btn btn-primary btn-lg w-full" id="btnSplitReveal" onclick="submitSplitReveal()" disabled>
-              Recover file
-            </button>
-          </div>
-
-          <div class="progress-wrap hidden" id="splitRevProgress">
-            <div class="progress-bar">
-              <div class="progress-fill" id="splitRevProgressFill"></div>
+            <div class="password-input-wrap mt-3">
+              <input type="password" id="splitRevPassword" class="form-input" placeholder="Password (if protected)" autocomplete="off">
+              <button type="button" class="btn-toggle-eye" title="Toggle visibility" onclick="togglePasswordVisibility('splitRevPassword')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
             </div>
-            <div class="progress-label" id="splitRevProgressLabel">Authenticating parts and reconstructing file...</div>
-          </div>
 
-          <div class="result-card hidden" id="splitRevResultCard">
+            <div class="action-row mt-4">
+              <button type="button" class="btn btn-primary btn-lg w-full" id="btnSplitReveal" onclick="submitSplitReveal()" disabled>
+                Recover file
+              </button>
+            </div>
+
+            <div class="progress-wrap hidden" id="splitRevProgress">
+              <div class="progress-bar">
+                <div class="progress-fill" id="splitRevProgressFill"></div>
+              </div>
+              <div class="progress-label" id="splitRevProgressLabel">Authenticating parts and reconstructing file...</div>
+            </div>
+          </div>
+        </div> <!-- end workflow-grid-2col -->
+
+        <div class="result-card hidden" id="splitRevResultCard">
             <div class="result-header">
               <h3 class="result-title">File recovered successfully.</h3>
               <p class="result-subtitle" id="splitRevSub">All parts verified and recombined.</p>
