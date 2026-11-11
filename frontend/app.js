@@ -127,15 +127,20 @@ function initTabs() {
 }
 
 function switchTab(targetId) {
-  // If navigating away from a completed success screen, reset form state
+  // If navigating away from or refreshing a completed success screen, reset form state
   const hideResultCard = document.getElementById('hideResultCard');
-  if (hideResultCard && !hideResultCard.classList.contains('hidden') && targetId !== 'hide') {
+  if (hideResultCard && !hideResultCard.classList.contains('hidden')) {
     resetHideForm(false);
   }
 
   const revealResultCard = document.getElementById('revealResultCard');
   if (revealResultCard && !revealResultCard.classList.contains('hidden') && targetId !== 'reveal') {
     resetRevealForm(false);
+  }
+
+  const verifyResultCard = document.getElementById('verifyResultCard');
+  if (verifyResultCard && !verifyResultCard.classList.contains('hidden') && targetId !== 'verify') {
+    resetVerifyImage();
   }
 
   clearAlerts();
@@ -698,10 +703,15 @@ async function executeHideRequest() {
     }
 
     // Convert Base64 PNG to Blob and track it
-    const blob = base64ToBlob(json.image_base64, 'image/png');
+    const cleanB64 = (json.image_base64 || '').replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '');
+    const dataUrl = cleanB64 ? ('data:image/png;base64,' + cleanB64) : '';
+    const blob = base64ToBlob(cleanB64, 'image/png');
     const blobUrl = trackBlobUrl(URL.createObjectURL(blob));
 
-    document.getElementById('hideResultPreview').src = blobUrl;
+    const previewEl = document.getElementById('hideResultPreview');
+    if (previewEl) {
+      previewEl.src = dataUrl || blobUrl;
+    }
     state.hide.downloadBlobUrl = blobUrl;
     state.hide.downloadFilename = json.filename || 'protected_image.png';
     state.hide.isProtected = !!json.is_protected;
@@ -720,7 +730,12 @@ async function executeHideRequest() {
       );
     }
 
+    // Hide input form so lingering capacity/entropy bars are NOT visible during result
+    const formWrap = document.getElementById('hideFormWrap');
+    if (formWrap) formWrap.classList.add('hidden');
+
     resultCard.classList.remove('hidden');
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
     showAlert('success', Terminology.MSG_PROTECTED_READY);
 
   } catch (err) {
@@ -808,6 +823,19 @@ function resetHideForm(preserveCover = false) {
   if (fileInfo) fileInfo.textContent = 'No file chosen';
   state.hide.secretFile = null;
 
+  // Clear capacity meter and shortfall card completely
+  const capMeterBox = document.getElementById('hideCapacityMeterBox');
+  if (capMeterBox) capMeterBox.classList.add('hidden');
+  const capFill = document.getElementById('hideCapacityFill');
+  if (capFill) {
+    capFill.style.width = '0%';
+    capFill.className = 'capacity-meter-fill';
+  }
+  const capStatus = document.getElementById('hideCapacityStatus');
+  if (capStatus) capStatus.textContent = '0 B / 0 B (0%)';
+  const sfCard = document.getElementById('capacityShortfallCard');
+  if (sfCard) sfCard.classList.add('hidden');
+
   // Clear password inputs and feedback
   const p1 = document.getElementById('hidePassword');
   if (p1) p1.value = '';
@@ -818,6 +846,27 @@ function resetHideForm(preserveCover = false) {
     pMatch.textContent = '';
     pMatch.className = 'password-match-msg';
   }
+
+  // Clear password entropy meter completely
+  const entFill = document.getElementById('hideEntropyFill');
+  if (entFill) {
+    entFill.className = 'entropy-bar-fill empty';
+    entFill.style.width = '0%';
+  }
+  const entRating = document.getElementById('hideEntropyRating');
+  if (entRating) entRating.textContent = 'Optional password';
+  const entBits = document.getElementById('hideEntropyBits');
+  if (entBits) entBits.textContent = 'Argon2id (RFC 9106)';
+
+  // Clear compression and advanced settings
+  const compBox = document.getElementById('hideCompress');
+  if (compBox) compBox.checked = false;
+  const compBadge = document.getElementById('compressionStatusBadge');
+  if (compBadge) compBadge.classList.add('hidden');
+  const bitsSelect = document.getElementById('hideBits');
+  if (bitsSelect) bitsSelect.value = '1';
+  const bitsHint = document.getElementById('hideBitsHint');
+  if (bitsHint) bitsHint.textContent = '1-bit replaces the least significant bit per color channel.';
 
   // Clear adaptive checkbox and flags
   const adapt = document.getElementById('hideAdaptive');
@@ -830,13 +879,15 @@ function resetHideForm(preserveCover = false) {
   const modal = document.getElementById('unprotectedModal');
   if (modal) modal.classList.add('hidden');
 
-  // Reset progress and results
+  // Reset progress and results, restore form wrap
   const progress = document.getElementById('hideProgress');
   if (progress) progress.classList.add('hidden');
   const resultCard = document.getElementById('hideResultCard');
   if (resultCard) resultCard.classList.add('hidden');
   const preview = document.getElementById('hideResultPreview');
   if (preview) preview.src = '';
+  const formWrap = document.getElementById('hideFormWrap');
+  if (formWrap) formWrap.classList.remove('hidden');
 
   validateHideForm();
 }
@@ -1080,6 +1131,7 @@ function handleVerifyImageSelect(file) {
 
   const reader = new FileReader();
   reader.onload = (e) => {
+    state.verify.previewDataUrl = e.target.result;
     document.getElementById('verifyThumb').src = e.target.result;
     document.getElementById('verifyMetaName').textContent = file.name;
     document.getElementById('verifyDropzone').classList.add('hidden');
@@ -1091,8 +1143,13 @@ function handleVerifyImageSelect(file) {
 
 function resetVerifyImage() {
   state.verify.imageFile = null;
+  state.verify.previewDataUrl = null;
   const input = document.getElementById('verifyImageInput');
   if (input) input.value = '';
+  const thumb = document.getElementById('verifyThumb');
+  if (thumb) thumb.src = '';
+  const resultPreview = document.getElementById('verifyResultPreview');
+  if (resultPreview) resultPreview.src = '';
   document.getElementById('verifyDropzone').classList.remove('hidden');
   document.getElementById('verifyImageMeta').classList.add('hidden');
   document.getElementById('btnVerifyImage').disabled = true;
@@ -1120,6 +1177,12 @@ async function submitVerifyImage() {
     const card = document.getElementById('verifyResultCard');
     const title = document.getElementById('verifyResultTitle');
 
+    // Show verified image preview
+    const resultPreview = document.getElementById('verifyResultPreview');
+    if (resultPreview && state.verify.previewDataUrl) {
+      resultPreview.src = state.verify.previewDataUrl;
+    }
+
     if (json.has_payload) {
       if (title) title.textContent = 'Protected content detected';
       document.getElementById('verifyHasPayload').textContent = 'Yes';
@@ -1142,6 +1205,7 @@ async function submitVerifyImage() {
     }
 
     card.classList.remove('hidden');
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
   } catch (err) {
     btn.disabled = false;
@@ -1245,22 +1309,15 @@ async function queryImageCapacity(file, onSuccess, onError) {
    Base64 to Blob Helper
    ========================================================================== */
 
-function base64ToBlob(base64, mimeType) {
-  const byteChars = atob(base64);
-  const byteArrays = [];
-  const sliceSize = 512;
-
-  for (let offset = 0; offset < byteChars.length; offset += sliceSize) {
-    const slice = byteChars.slice(offset, offset + sliceSize);
-    const byteNumbers = new Array(slice.length);
-    for (let i = 0; i < slice.length; i++) {
-      byteNumbers[i] = slice.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNumbers);
-    byteArrays.push(byteArray);
+function base64ToBlob(base64, mimeType = 'application/octet-stream') {
+  if (!base64) return new Blob([], { type: mimeType });
+  const clean = String(base64).replace(/^data:[^;]+;base64,/, '').replace(/\s/g, '');
+  const byteChars = atob(clean);
+  const byteNumbers = new Uint8Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) {
+    byteNumbers[i] = byteChars.charCodeAt(i);
   }
-
-  return new Blob(byteArrays, { type: mimeType });
+  return new Blob([byteNumbers], { type: mimeType });
 }
 
 /* ==========================================================================

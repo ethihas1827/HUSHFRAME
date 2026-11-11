@@ -47,7 +47,7 @@ static void write_png_chunk(FILE *fp, const char type[4], const uint8_t *data, u
     /* 4. CRC32 over type + data */
     uint32_t crc = stego_crc32(0, (const uint8_t *)type, 4);
     if (len > 0 && data) {
-        crc = stego_crc32(crc ^ 0xFFFFFFFF, data, len) ^ 0xFFFFFFFF;
+        crc = stego_crc32(crc, data, len);
     }
     uint8_t crc_bytes[4] = {
         (uint8_t)((crc >> 24) & 0xFF),

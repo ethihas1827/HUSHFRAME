@@ -218,6 +218,7 @@
           <p class="screen-subtitle">Select a cover image and the content you want to protect.</p>
         </div>
 
+        <div id="hideFormWrap">
         <div class="workflow-grid-2col">
           <!-- Step 1: Select Cover Image -->
           <div class="step-card">
@@ -465,41 +466,42 @@
             </div>
             <div class="progress-label" id="hideProgressLabel">Protecting file and embedding in image...</div>
           </div>
+        </div>
+        </div> <!-- end hideFormWrap -->
 
-          <!-- Clean Success Screen -->
-          <div class="result-card hidden" id="hideResultCard">
-            <div class="result-header">
-              <h3 class="result-title">Your protected image is ready.</h3>
-              <p class="result-subtitle" id="hideResultSub">File protected and embedded successfully.</p>
+        <!-- Clean Success Screen -->
+        <div class="result-card hidden" id="hideResultCard">
+          <div class="result-header">
+            <h3 class="result-title">Your protected image is ready.</h3>
+            <p class="result-subtitle" id="hideResultSub">File protected and embedded successfully.</p>
+          </div>
+
+          <div class="result-body">
+            <div class="result-preview-wrap">
+              <img id="hideResultPreview" class="result-preview" alt="Protected image preview">
             </div>
 
-            <div class="result-body">
-              <div class="result-preview-wrap">
-                <img id="hideResultPreview" class="result-preview" alt="Protected image preview">
+            <div class="result-meta-grid">
+              <div class="meta-item">
+                <span class="meta-label">Protection</span>
+                <span class="meta-value" id="hideResultProtection">Password protected</span>
               </div>
-
-              <div class="result-meta-grid">
-                <div class="meta-item">
-                  <span class="meta-label">Protection</span>
-                  <span class="meta-value" id="hideResultProtection">Password protected</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Format</span>
-                  <span class="meta-value">Lossless PNG</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">File size</span>
-                  <span class="meta-value" id="hideResultSize">0 KB</span>
-                </div>
+              <div class="meta-item">
+                <span class="meta-label">Format</span>
+                <span class="meta-value">Lossless PNG</span>
               </div>
-              <div class="result-notice hidden" id="hideResultNotice"></div>
+              <div class="meta-item">
+                <span class="meta-label">File size</span>
+                <span class="meta-value" id="hideResultSize">0 KB</span>
+              </div>
             </div>
+            <div class="result-notice hidden" id="hideResultNotice"></div>
+          </div>
 
-            <div class="result-actions">
-              <button type="button" id="btnDownloadProtected" class="btn btn-primary btn-lg" onclick="downloadProtectedImage()">Download protected image</button>
-              <button type="button" class="btn btn-secondary" onclick="openHideScreen()">Protect another file</button>
-              <button type="button" class="btn btn-secondary" onclick="goHome()">Return to home</button>
-            </div>
+          <div class="result-actions">
+            <button type="button" id="btnDownloadProtected" class="btn btn-primary btn-lg" onclick="downloadProtectedImage()">Download protected image</button>
+            <button type="button" class="btn btn-secondary" onclick="openHideScreen()">Protect another file</button>
+            <button type="button" class="btn btn-secondary" onclick="goHome()">Return to home</button>
           </div>
         </div>
 
@@ -915,19 +917,30 @@
               <h3 class="result-title" id="verifyResultTitle">Protected content detected</h3>
               <p class="result-subtitle" id="verifyResultMsg"></p>
             </div>
-            <div class="result-meta-grid">
-              <div class="meta-item">
-                <span class="meta-label">Protected content</span>
-                <span class="meta-value" id="verifyHasPayload">Yes</span>
+
+            <div class="result-body">
+              <div class="result-preview-wrap">
+                <img id="verifyResultPreview" class="result-preview" alt="Verified image preview">
               </div>
-              <div class="meta-item">
-                <span class="meta-label">Protection</span>
-                <span class="meta-value" id="verifyProtection">Password protected</span>
+
+              <div class="result-meta-grid">
+                <div class="meta-item">
+                  <span class="meta-label">Protected content</span>
+                  <span class="meta-value" id="verifyHasPayload">Yes</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Protection</span>
+                  <span class="meta-value" id="verifyProtection">Password protected</span>
+                </div>
+                <div class="meta-item">
+                  <span class="meta-label">Payload size</span>
+                  <span class="meta-value" id="verifyPayloadSize">0 bytes</span>
+                </div>
               </div>
-              <div class="meta-item">
-                <span class="meta-label">Payload size</span>
-                <span class="meta-value" id="verifyPayloadSize">0 bytes</span>
-              </div>
+            </div>
+
+            <div class="result-actions" style="margin-top: 1.25rem;">
+              <button type="button" class="btn btn-secondary" onclick="resetVerifyImage()">Verify another image</button>
             </div>
           </div>
 
